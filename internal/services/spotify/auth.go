@@ -7,7 +7,9 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"time" // Added for shutdown timeout
 
 	"github.com/google/uuid"
@@ -161,13 +163,28 @@ func (s *AuthService) StartAuthentication(ctx context.Context) (*spotify.Client,
 
 	// No valid token, start the authentication flow
 	log.Println("No valid Spotify token found. Starting authentication flow...")
+	
+	authURL := s.GetAuthURL()
+	
 	fmt.Printf(`GoFi needs permission to access your Spotify account.
 `)
-	fmt.Printf(`Please open the following URL in your browser:
+	
+	// Try to open the browser automatically
+	if err := openBrowser(authURL); err != nil {
+		// If automatic opening fails, show the URL for manual copying
+		fmt.Printf(`Please open the following URL in your browser:
 
 %s
 
-`, s.GetAuthURL())
+`, authURL)
+	} else {
+		fmt.Println("Opening browser for authentication...")
+		fmt.Printf(`If your browser doesn't open automatically, please visit:
+%s
+
+`, authURL)
+	}
+	
 	fmt.Println("Waiting for authorization...")
 
 	// Start the callback server
@@ -341,4 +358,27 @@ func (s *AuthService) GetClient(ctx context.Context) (*spotify.Client, error) {
 
 	log.Println("Using authenticated Spotify client from stored token.")
 	return client, nil
+}
+
+// openBrowser tries to open the URL in the default browser
+func openBrowser(url string) error {
+	var cmd string
+	var args []string
+
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = "open"
+		args = []string{url}
+	case "windows":
+		cmd = "cmd"
+		args = []string{"/c", "start", url}
+	case "linux":
+		// Try xdg-open first, then fallback to other options
+		cmd = "xdg-open"
+		args = []string{url}
+	default:
+		return fmt.Errorf("unsupported platform")
+	}
+
+	return exec.Command(cmd, args...).Start()
 }

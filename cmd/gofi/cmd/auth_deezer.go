@@ -19,25 +19,35 @@ for the Deezer ARL cookie and save it to your environment.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		dm := ui.NewDisplayManager()
 		
-		// Try to get ARL from browser cookies
 		dm.PrintHeader("Deezer Authentication")
-		dm.PrintInfo("Searching for Deezer ARL cookie in your browsers...")
 		
-		arl, err := auth.GetARLFromAnyBrowser()
-		if err != nil {
-			dm.PrintError("Failed to find Deezer ARL cookie: %v", err)
-			fmt.Println()
-			dm.PrintInfo("Please make sure you are logged into Deezer in one of the following browsers:")
-			dm.PrintInfo("  • Chrome")
-			dm.PrintInfo("  • Firefox")
-			dm.PrintInfo("  • Edge")
-			dm.PrintInfo("  • Arc")
-			if runtime.GOOS == "darwin" {
-				dm.PrintInfo("  • Safari")
+		// First check if ARL is already in environment
+		var arl string
+		var err error
+		
+		if existingARL := os.Getenv("DEEZER_ARL"); existingARL != "" {
+			dm.PrintInfo("Found existing DEEZER_ARL in environment")
+			arl = existingARL
+		} else {
+			// Try to get ARL from browser cookies
+			dm.PrintInfo("Searching for Deezer ARL cookie in your browsers...")
+			
+			arl, err = auth.GetARLFromAnyBrowser()
+			if err != nil {
+				dm.PrintError("Failed to find Deezer ARL cookie: %v", err)
+				fmt.Println()
+				dm.PrintInfo("Please make sure you are logged into Deezer in one of the following browsers:")
+				dm.PrintInfo("  • Chrome")
+				dm.PrintInfo("  • Firefox")
+				dm.PrintInfo("  • Edge")
+				dm.PrintInfo("  • Arc")
+				if runtime.GOOS == "darwin" {
+					dm.PrintInfo("  • Safari")
+				}
+				fmt.Println()
+				dm.PrintInfo("Alternatively, you can set the DEEZER_ARL environment variable manually.")
+				os.Exit(1)
 			}
-			fmt.Println()
-			dm.PrintInfo("Alternatively, you can set the DEEZER_ARL environment variable manually.")
-			os.Exit(1)
 		}
 
 		// Validate the ARL token

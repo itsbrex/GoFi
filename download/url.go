@@ -216,6 +216,12 @@ func GetTrackDownloadUrl(track types.TrackType, quality int) (*TrackDownloadUrl,
 
 	// Fallback to the old method.
 	logger.Debug("Falling back to old method for track URL.")
+	
+	// Check if MD5_ORIGIN is empty (usually means authentication failed)
+	if len(track.MD5_ORIGIN) == 0 {
+		return nil, fmt.Errorf("track data incomplete - MD5_ORIGIN is empty. This usually means the Deezer ARL token is invalid or expired. Please run 'gofi auth deezer' to refresh your authentication")
+	}
+	
 	filename := decrypt.GetSongFileName(&decrypt.TrackType{
 		MD5_ORIGIN:    track.MD5_ORIGIN,
 		SNG_ID:        track.SNG_ID,

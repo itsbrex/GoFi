@@ -435,22 +435,39 @@ func copyFile(src, dst string) error {
 // GetARLFromAnyBrowser tries to get the ARL cookie from any available browser
 func GetARLFromAnyBrowser() (string, error) {
 	browsers := []BrowserType{Chrome, Firefox, Edge, Arc}
-	if runtime.GOOS == "darwin" {
-		browsers = append(browsers, Safari)
-	}
+	// Don't add Safari on macOS since it's not implemented yet
+	// if runtime.GOOS == "darwin" {
+	// 	browsers = append(browsers, Safari)
+	// }
 
 	var lastErr error
+	var checkedBrowsers []string
+	
 	for _, browser := range browsers {
 		reader := NewCookieReader(browser)
 		arl, err := reader.GetDeezerARL()
 		if err == nil && arl != "" {
 			return arl, nil
 		}
-		lastErr = err
+		
+		// Skip "not implemented" errors
+		if err != nil && !strings.Contains(err.Error(), "not implemented") {
+			// For Arc, store more specific error info
+			if browser == Arc {
+				lastErr = fmt.Errorf("%s: %w", browser, err)
+			} else {
+				lastErr = err
+			}
+			checkedBrowsers = append(checkedBrowsers, string(browser))
+		}
+	}
+
+	if len(checkedBrowsers) == 0 {
+		return "", errors.New("no supported browsers found")
 	}
 
 	if lastErr != nil {
-		return "", fmt.Errorf("failed to get ARL cookie from any browser: %w", lastErr)
+		return "", fmt.Errorf("failed to get ARL cookie from browsers (%s)", strings.Join(checkedBrowsers, ", "))
 	}
 	return "", errors.New("no ARL cookie found in any browser")
 }
