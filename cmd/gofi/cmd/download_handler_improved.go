@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/d-fi/GoFi/api"
@@ -17,8 +18,6 @@ import (
 	"github.com/d-fi/GoFi/utils"
 )
 
-var display = ui.NewDisplayManager()
-
 // downloadHandlerImproved processes downloads with improved UI
 func downloadHandlerImproved(url string, downloadPath string, quality int) error {
 	ctx := context.Background()
@@ -26,7 +25,7 @@ func downloadHandlerImproved(url string, downloadPath string, quality int) error
 	// Parse the URL to identify its type
 	parsedInfo, err := internalutils.ParseMusicURL(url)
 	if err != nil {
-		display.PrintError("Failed to parse URL: %v", err)
+		ui.ErrorWithIcon("Failed to parse URL: %v", err)
 		return err
 	}
 
@@ -40,7 +39,7 @@ func downloadHandlerImproved(url string, downloadPath string, quality int) error
 		return handleDeezerDownloadImproved(ctx, parsedInfo, downloadPath, quality)
 	}
 
-	display.PrintError("Unsupported URL source: %s", parsedInfo.Source)
+	ui.ErrorWithIcon("Unsupported URL source: %s", parsedInfo.Source)
 	return fmt.Errorf("unsupported URL source: %s", parsedInfo.Source)
 }
 
@@ -49,15 +48,15 @@ func handleSpotifyDownloadImproved(ctx context.Context, parsedInfo *internalutil
 	// Get the Spotify client
 	client, _ := getAuthenticatedSpotifyClient(ctx)
 	if client == nil {
-		display.PrintError("Could not get authenticated Spotify client")
-		display.PrintInfo("Run 'gofi auth spotify' to authenticate first")
+		ui.ErrorWithIcon("Could not get authenticated Spotify client")
+		ui.InfoWithIcon("Run 'gofi auth spotify' to authenticate first")
 		return fmt.Errorf("could not get authenticated Spotify client")
 	}
 
 	// Create Spotify service
 	spotifyService := spotify.NewSpotifyService(client)
 	if spotifyService == nil {
-		display.PrintError("Failed to initialize Spotify service")
+		ui.ErrorWithIcon("Failed to initialize Spotify service")
 		return fmt.Errorf("failed to initialize Spotify service")
 	}
 
@@ -73,7 +72,7 @@ func handleSpotifyDownloadImproved(ctx context.Context, parsedInfo *internalutil
 		return handleSpotifyPlaylistImproved(ctx, spotifyService, parsedInfo.ID, downloadPath, quality)
 	
 	default:
-		display.PrintError("Unsupported Spotify content type: %s", parsedInfo.Type)
+		ui.ErrorWithIcon("Unsupported Spotify content type: %s", parsedInfo.Type)
 		return fmt.Errorf("unsupported Spotify content type: %s", parsedInfo.Type)
 	}
 }
@@ -92,35 +91,52 @@ func handleDeezerDownloadImproved(ctx context.Context, parsedInfo *internalutils
 		return handleDeezerPlaylistImproved(parsedInfo.ID, downloadPath, quality)
 	
 	default:
-		display.PrintError("Unsupported Deezer content type: %s", parsedInfo.Type)
+		ui.ErrorWithIcon("Unsupported Deezer content type: %s", parsedInfo.Type)
 		return fmt.Errorf("unsupported Deezer content type: %s", parsedInfo.Type)
 	}
 }
 
 // handleSpotifyTrackImproved handles downloading a single Spotify track with improved UI
 func handleSpotifyTrackImproved(ctx context.Context, spotifyService *spotify.SpotifyService, id string, downloadPath string, quality int) error {
-	display.PrintHeader("Spotify Track Download")
+	ui.Header("═══ ♫ Spotify Track Download ═══")
+	fmt.Println()
 	
 	// Fetch track from Spotify
-	display.PrintSearching("Spotify for track info")
+	fmt.Print(ui.InfoString("🔍 Searching Spotify for track info... "))
 	track, err := spotifyService.FetchTrack(ctx, id)
 	if err != nil {
-		display.PrintSearchResult(false)
+		fmt.Println(ui.ErrorString("✗"))
 		return fmt.Errorf("failed to fetch track from Spotify: %v", err)
 	}
-	display.PrintSearchResult(true)
+	fmt.Println(ui.SuccessString("✓"))
 
 	// Find matching track on Deezer
-	display.PrintSearching("Deezer for matching track")
+	fmt.Print(ui.InfoString("🔍 Searching Deezer for matching track... "))
 	deezerTrack, err := api.SearchTrackOnDeezer(track)
 	if err != nil {
-		display.PrintSearchResult(false)
+		fmt.Println(ui.ErrorString("✗"))
 		return fmt.Errorf("failed to find track on Deezer: %v", err)
 	}
-	display.PrintSearchResult(true)
+	fmt.Println(ui.SuccessString("✓"))
 
 	// Print track info
-	display.PrintTrackInfo(deezerTrack.SNG_TITLE, deezerTrack.ART_NAME, deezerTrack.ALB_TITLE, quality)
+	fmt.Println()
+	ui.InfoBold("Track Details:")
+	fmt.Printf("  ♫ Title:   %s\n", deezerTrack.SNG_TITLE)
+	fmt.Printf("  ♫ Artist:  %s\n", deezerTrack.ART_NAME)
+	fmt.Printf("  ♫ Album:   %s\n", deezerTrack.ALB_TITLE)
+	fmt.Print("  ♫ Quality: ")
+	switch quality {
+	case 9:
+		ui.Success("FLAC (Lossless)")
+	case 3:
+		ui.Info("MP3 320kbps")
+	case 1:
+		ui.Warning("MP3 128kbps")
+	default:
+		fmt.Printf("Quality %d\n", quality)
+	}
+	fmt.Println()
 
 	// Create a folder with the artist name
 	artistFolder := filepath.Join(downloadPath, deezerTrack.ART_NAME)
@@ -134,18 +150,35 @@ func handleSpotifyTrackImproved(ctx context.Context, spotifyService *spotify.Spo
 
 // handleDeezerTrackImproved handles downloading a single Deezer track with improved UI
 func handleDeezerTrackImproved(id string, downloadPath string, quality int) error {
-	display.PrintHeader("Deezer Track Download")
+	ui.Header("═══ ♫ Deezer Track Download ═══")
+	fmt.Println()
 	
-	display.PrintSearching("Deezer for track info")
+	fmt.Print(ui.InfoString("🔍 Searching Deezer for track info... "))
 	track, err := api.GetTrackInfo(id)
 	if err != nil {
-		display.PrintSearchResult(false)
+		fmt.Println(ui.ErrorString("✗"))
 		return fmt.Errorf("failed to get track info from Deezer: %v", err)
 	}
-	display.PrintSearchResult(true)
+	fmt.Println(ui.SuccessString("✓"))
 
 	// Print track info
-	display.PrintTrackInfo(track.SNG_TITLE, track.ART_NAME, track.ALB_TITLE, quality)
+	fmt.Println()
+	ui.InfoBold("Track Details:")
+	fmt.Printf("  ♫ Title:   %s\n", track.SNG_TITLE)
+	fmt.Printf("  ♫ Artist:  %s\n", track.ART_NAME)
+	fmt.Printf("  ♫ Album:   %s\n", track.ALB_TITLE)
+	fmt.Print("  ♫ Quality: ")
+	switch quality {
+	case 9:
+		ui.Success("FLAC (Lossless)")
+	case 3:
+		ui.Info("MP3 320kbps")
+	case 1:
+		ui.Warning("MP3 128kbps")
+	default:
+		fmt.Printf("Quality %d\n", quality)
+	}
+	fmt.Println()
 
 	// Create a folder with the artist name
 	artistFolder := filepath.Join(downloadPath, track.ART_NAME)
@@ -159,28 +192,45 @@ func handleDeezerTrackImproved(id string, downloadPath string, quality int) erro
 
 // handleSpotifyAlbumImproved handles downloading a Spotify album with improved UI
 func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.SpotifyService, id string, downloadPath string, quality int) error {
-	display.PrintHeader("Spotify Album Download")
+	ui.Header("═══ ♫ Spotify Album Download ═══")
+	fmt.Println()
 	
-	display.PrintSearching("Spotify for album info")
+	fmt.Print(ui.InfoString("🔍 Searching Spotify for album info... "))
 	album, tracks, err := spotifyService.FetchAlbum(ctx, id)
 	if err != nil {
-		display.PrintSearchResult(false)
+		fmt.Println(ui.ErrorString("✗"))
 		return fmt.Errorf("failed to fetch album from Spotify: %v", err)
 	}
-	display.PrintSearchResult(true)
+	fmt.Println(ui.SuccessString("✓"))
 
 	artistName := joinArtistNames(album.Artists)
-	display.PrintAlbumInfo(album.Title, artistName, len(tracks), quality)
+	fmt.Println()
+	ui.InfoBold("Album Details:")
+	fmt.Printf("  ♫ Title:   %s\n", album.Title)
+	fmt.Printf("  ♫ Artist:  %s\n", artistName)
+	fmt.Printf("  ♫ Tracks:  %d\n", len(tracks))
+	fmt.Print("  ♫ Quality: ")
+	switch quality {
+	case 9:
+		ui.Success("FLAC (Lossless)")
+	case 3:
+		ui.Info("MP3 320kbps")
+	case 1:
+		ui.Warning("MP3 128kbps")
+	default:
+		fmt.Printf("Quality %d\n", quality)
+	}
+	fmt.Println()
 
 	// Find matching album on Deezer
-	display.PrintSearching("Deezer for matching album")
+	fmt.Print(ui.InfoString("🔍 Searching Deezer for matching album... "))
 	deezerAlbum, err := api.SearchAlbumOnDeezer(album)
 	if err != nil {
-		display.PrintSearchResult(false)
-		display.PrintWarning("Could not find album on Deezer. Trying to match individual tracks...")
+		fmt.Println(ui.ErrorString("✗"))
+		ui.WarningWithIcon("Could not find album on Deezer. Trying to match individual tracks...")
 		return downloadSpotifyTracksIndividuallyImproved(tracks, downloadPath, quality, "")
 	}
-	display.PrintSearchResult(true)
+	fmt.Println(ui.SuccessString("✓"))
 
 	// Create a folder for the album
 	albumPath := filepath.Join(downloadPath, deezerAlbum.ALB_TITLE)
@@ -188,7 +238,7 @@ func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.Spo
 	// Get album tracks
 	albumTracks, err := api.GetAlbumTracks(fmt.Sprint(deezerAlbum.ALB_ID))
 	if err != nil {
-		display.PrintError("Failed to get album tracks from Deezer: %v", err)
+		ui.ErrorWithIcon("Failed to get album tracks from Deezer: %v", err)
 		return fmt.Errorf("failed to get album tracks from Deezer: %v", err)
 	}
 
@@ -197,13 +247,13 @@ func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.Spo
 	succeeded := 0
 	failed := 0
 
-	display.PrintInfo("Starting download of %d tracks...", total)
+	ui.InfoWithIcon("Starting download of %d tracks...", total)
 	fmt.Println()
 
 	for i, track := range albumTracks.Data {
 		trackInfo, err := api.GetTrackInfo(fmt.Sprint(track.SNG_ID))
 		if err != nil {
-			display.PrintError("[%d/%d] Failed to get info for: %s", i+1, total, track.SNG_TITLE)
+			ui.ErrorWithIcon("[%d/%d] Failed to get info for: %s", i+1, total, track.SNG_TITLE)
 			failed++
 			continue
 		}
@@ -211,17 +261,40 @@ func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.Spo
 		// Custom filename for the track: Artist - Title
 		customFilename := fmt.Sprintf("%s - %s", trackInfo.ART_NAME, trackInfo.SNG_TITLE)
 		
-		display.PrintInfo("[%d/%d] Downloading: %s", i+1, total, customFilename)
+		ui.InfoWithIcon("[%d/%d] Downloading: %s", i+1, total, customFilename)
 		err = downloadTrackImproved(trackInfo, albumPath, quality, customFilename)
 		if err != nil {
-			display.PrintError("Failed: %v", err)
+			ui.ErrorWithIcon("Failed: %v", err)
 			failed++
 		} else {
 			succeeded++
 		}
 	}
 
-	display.PrintDownloadSummary(succeeded, failed, total)
+	fmt.Println()
+	fmt.Println(strings.Repeat("─", 50))
+	ui.InfoBold("Download Summary")
+	fmt.Println(strings.Repeat("─", 50))
+	
+	if succeeded > 0 {
+		ui.SuccessWithIcon("Succeeded: %d", succeeded)
+	}
+	if failed > 0 {
+		ui.ErrorWithIcon("Failed:    %d", failed)
+	}
+	fmt.Printf("  Total:     %d\n", total)
+	
+	if failed == 0 {
+		fmt.Println()
+		ui.SuccessWithIcon("All downloads completed successfully!")
+	} else if succeeded == 0 {
+		fmt.Println()
+		ui.ErrorWithIcon("All downloads failed.")
+	} else {
+		fmt.Println()
+		ui.WarningWithIcon("Some downloads failed. Check the errors above.")
+	}
+	fmt.Println(strings.Repeat("─", 50))
 	
 	if failed > 0 {
 		return fmt.Errorf("some tracks failed to download")
@@ -231,24 +304,41 @@ func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.Spo
 
 // handleDeezerAlbumImproved handles downloading a Deezer album with improved UI
 func handleDeezerAlbumImproved(id string, downloadPath string, quality int) error {
-	display.PrintHeader("Deezer Album Download")
+	ui.Header("═══ ♫ Deezer Album Download ═══")
+	fmt.Println()
 	
-	display.PrintSearching("Deezer for album info")
+	fmt.Print(ui.InfoString("🔍 Searching Deezer for album info... "))
 	album, err := api.GetAlbumInfo(id)
 	if err != nil {
-		display.PrintSearchResult(false)
+		fmt.Println(ui.ErrorString("✗"))
 		return fmt.Errorf("failed to get album info from Deezer: %v", err)
 	}
-	display.PrintSearchResult(true)
+	fmt.Println(ui.SuccessString("✓"))
 
 	// Get album tracks
 	albumTracks, err := api.GetAlbumTracks(id)
 	if err != nil {
-		display.PrintError("Failed to get album tracks from Deezer: %v", err)
+		ui.ErrorWithIcon("Failed to get album tracks from Deezer: %v", err)
 		return fmt.Errorf("failed to get album tracks from Deezer: %v", err)
 	}
 
-	display.PrintAlbumInfo(album.ALB_TITLE, album.ART_NAME, len(albumTracks.Data), quality)
+	fmt.Println()
+	ui.InfoBold("Album Details:")
+	fmt.Printf("  ♫ Title:   %s\n", album.ALB_TITLE)
+	fmt.Printf("  ♫ Artist:  %s\n", album.ART_NAME)
+	fmt.Printf("  ♫ Tracks:  %d\n", len(albumTracks.Data))
+	fmt.Print("  ♫ Quality: ")
+	switch quality {
+	case 9:
+		ui.Success("FLAC (Lossless)")
+	case 3:
+		ui.Info("MP3 320kbps")
+	case 1:
+		ui.Warning("MP3 128kbps")
+	default:
+		fmt.Printf("Quality %d\n", quality)
+	}
+	fmt.Println()
 
 	// Create a folder for the album
 	albumPath := filepath.Join(downloadPath, album.ALB_TITLE)
@@ -258,13 +348,13 @@ func handleDeezerAlbumImproved(id string, downloadPath string, quality int) erro
 	succeeded := 0
 	failed := 0
 
-	display.PrintInfo("Starting download of %d tracks...", total)
+	ui.InfoWithIcon("Starting download of %d tracks...", total)
 	fmt.Println()
 
 	for i, track := range albumTracks.Data {
 		trackInfo, err := api.GetTrackInfo(fmt.Sprint(track.SNG_ID))
 		if err != nil {
-			display.PrintError("[%d/%d] Failed to get info for: %s", i+1, total, track.SNG_TITLE)
+			ui.ErrorWithIcon("[%d/%d] Failed to get info for: %s", i+1, total, track.SNG_TITLE)
 			failed++
 			continue
 		}
@@ -272,17 +362,40 @@ func handleDeezerAlbumImproved(id string, downloadPath string, quality int) erro
 		// Custom filename for the track: Artist - Title
 		customFilename := fmt.Sprintf("%s - %s", trackInfo.ART_NAME, trackInfo.SNG_TITLE)
 		
-		display.PrintInfo("[%d/%d] Downloading: %s", i+1, total, customFilename)
+		ui.InfoWithIcon("[%d/%d] Downloading: %s", i+1, total, customFilename)
 		err = downloadTrackImproved(trackInfo, albumPath, quality, customFilename)
 		if err != nil {
-			display.PrintError("Failed: %v", err)
+			ui.ErrorWithIcon("Failed: %v", err)
 			failed++
 		} else {
 			succeeded++
 		}
 	}
 
-	display.PrintDownloadSummary(succeeded, failed, total)
+	fmt.Println()
+	fmt.Println(strings.Repeat("─", 50))
+	ui.InfoBold("Download Summary")
+	fmt.Println(strings.Repeat("─", 50))
+	
+	if succeeded > 0 {
+		ui.SuccessWithIcon("Succeeded: %d", succeeded)
+	}
+	if failed > 0 {
+		ui.ErrorWithIcon("Failed:    %d", failed)
+	}
+	fmt.Printf("  Total:     %d\n", total)
+	
+	if failed == 0 {
+		fmt.Println()
+		ui.SuccessWithIcon("All downloads completed successfully!")
+	} else if succeeded == 0 {
+		fmt.Println()
+		ui.ErrorWithIcon("All downloads failed.")
+	} else {
+		fmt.Println()
+		ui.WarningWithIcon("Some downloads failed. Check the errors above.")
+	}
+	fmt.Println(strings.Repeat("─", 50))
 	
 	if failed > 0 {
 		return fmt.Errorf("some tracks failed to download")
@@ -292,17 +405,36 @@ func handleDeezerAlbumImproved(id string, downloadPath string, quality int) erro
 
 // handleSpotifyPlaylistImproved handles downloading a Spotify playlist with improved UI
 func handleSpotifyPlaylistImproved(ctx context.Context, spotifyService *spotify.SpotifyService, id string, downloadPath string, quality int) error {
-	display.PrintHeader("Spotify Playlist Download")
+	ui.Header("═══ ♫ Spotify Playlist Download ═══")
+	fmt.Println()
 	
-	display.PrintSearching("Spotify for playlist info")
+	fmt.Print(ui.InfoString("🔍 Searching Spotify for playlist info... "))
 	playlist, tracks, err := spotifyService.FetchPlaylist(ctx, id)
 	if err != nil {
-		display.PrintSearchResult(false)
+		fmt.Println(ui.ErrorString("✗"))
 		return fmt.Errorf("failed to fetch playlist from Spotify: %v", err)
 	}
-	display.PrintSearchResult(true)
+	fmt.Println(ui.SuccessString("✓"))
 
-	display.PrintPlaylistInfo(playlist.Title, playlist.OwnerName, len(tracks), quality)
+	fmt.Println()
+	ui.InfoBold("Playlist Details:")
+	fmt.Printf("  ♫ Title:   %s\n", playlist.Title)
+	if playlist.OwnerName != "" {
+		fmt.Printf("  ♫ Owner:   %s\n", playlist.OwnerName)
+	}
+	fmt.Printf("  ♫ Tracks:  %d\n", len(tracks))
+	fmt.Print("  ♫ Quality: ")
+	switch quality {
+	case 9:
+		ui.Success("FLAC (Lossless)")
+	case 3:
+		ui.Info("MP3 320kbps")
+	case 1:
+		ui.Warning("MP3 128kbps")
+	default:
+		fmt.Printf("Quality %d\n", quality)
+	}
+	fmt.Println()
 
 	// Create a folder for the playlist using just the playlist name
 	playlistPath := filepath.Join(downloadPath, playlist.Title)
@@ -312,24 +444,40 @@ func handleSpotifyPlaylistImproved(ctx context.Context, spotifyService *spotify.
 
 // handleDeezerPlaylistImproved handles downloading a Deezer playlist with improved UI
 func handleDeezerPlaylistImproved(id string, downloadPath string, quality int) error {
-	display.PrintHeader("Deezer Playlist Download")
+	ui.Header("═══ ♫ Deezer Playlist Download ═══")
+	fmt.Println()
 	
-	display.PrintSearching("Deezer for playlist info")
+	fmt.Print(ui.InfoString("🔍 Searching Deezer for playlist info... "))
 	playlist, err := api.GetPlaylistInfo(id)
 	if err != nil {
-		display.PrintSearchResult(false)
+		fmt.Println(ui.ErrorString("✗"))
 		return fmt.Errorf("failed to get playlist info from Deezer: %v", err)
 	}
-	display.PrintSearchResult(true)
+	fmt.Println(ui.SuccessString("✓"))
 
 	// Get playlist tracks
 	tracks, err := api.GetPlaylistTracks(id)
 	if err != nil {
-		display.PrintError("Failed to get playlist tracks from Deezer: %v", err)
+		ui.ErrorWithIcon("Failed to get playlist tracks from Deezer: %v", err)
 		return fmt.Errorf("failed to get playlist tracks from Deezer: %v", err)
 	}
 
-	display.PrintPlaylistInfo(playlist.Title, "", len(tracks.Data), quality)
+	fmt.Println()
+	ui.InfoBold("Playlist Details:")
+	fmt.Printf("  ♫ Title:   %s\n", playlist.Title)
+	fmt.Printf("  ♫ Tracks:  %d\n", len(tracks.Data))
+	fmt.Print("  ♫ Quality: ")
+	switch quality {
+	case 9:
+		ui.Success("FLAC (Lossless)")
+	case 3:
+		ui.Info("MP3 320kbps")
+	case 1:
+		ui.Warning("MP3 128kbps")
+	default:
+		fmt.Printf("Quality %d\n", quality)
+	}
+	fmt.Println()
 
 	// Create a folder for the playlist using just the playlist name
 	playlistPath := filepath.Join(downloadPath, playlist.Title)
@@ -339,13 +487,13 @@ func handleDeezerPlaylistImproved(id string, downloadPath string, quality int) e
 	succeeded := 0
 	failed := 0
 
-	display.PrintInfo("Starting download of %d tracks...", total)
+	ui.InfoWithIcon("Starting download of %d tracks...", total)
 	fmt.Println()
 
 	for i, track := range tracks.Data {
 		trackInfo, err := api.GetTrackInfo(fmt.Sprint(track.SNG_ID))
 		if err != nil {
-			display.PrintError("[%d/%d] Failed to get info for: %s by %s", i+1, total, track.SNG_TITLE, track.ART_NAME)
+			ui.ErrorWithIcon("[%d/%d] Failed to get info for: %s by %s", i+1, total, track.SNG_TITLE, track.ART_NAME)
 			failed++
 			continue
 		}
@@ -353,17 +501,40 @@ func handleDeezerPlaylistImproved(id string, downloadPath string, quality int) e
 		// Custom filename for the track: Artist - Title
 		customFilename := fmt.Sprintf("%s - %s", trackInfo.ART_NAME, trackInfo.SNG_TITLE)
 		
-		display.PrintInfo("[%d/%d] Downloading: %s", i+1, total, customFilename)
+		ui.InfoWithIcon("[%d/%d] Downloading: %s", i+1, total, customFilename)
 		err = downloadTrackImproved(trackInfo, playlistPath, quality, customFilename)
 		if err != nil {
-			display.PrintError("Failed: %v", err)
+			ui.ErrorWithIcon("Failed: %v", err)
 			failed++
 		} else {
 			succeeded++
 		}
 	}
 
-	display.PrintDownloadSummary(succeeded, failed, total)
+	fmt.Println()
+	fmt.Println(strings.Repeat("─", 50))
+	ui.InfoBold("Download Summary")
+	fmt.Println(strings.Repeat("─", 50))
+	
+	if succeeded > 0 {
+		ui.SuccessWithIcon("Succeeded: %d", succeeded)
+	}
+	if failed > 0 {
+		ui.ErrorWithIcon("Failed:    %d", failed)
+	}
+	fmt.Printf("  Total:     %d\n", total)
+	
+	if failed == 0 {
+		fmt.Println()
+		ui.SuccessWithIcon("All downloads completed successfully!")
+	} else if succeeded == 0 {
+		fmt.Println()
+		ui.ErrorWithIcon("All downloads failed.")
+	} else {
+		fmt.Println()
+		ui.WarningWithIcon("Some downloads failed. Check the errors above.")
+	}
+	fmt.Println(strings.Repeat("─", 50))
 
 	if failed > 0 {
 		return fmt.Errorf("%d out of %d tracks failed to download", failed, total)
@@ -377,7 +548,7 @@ func downloadSpotifyTracksIndividuallyImproved(tracks []models.Track, downloadPa
 	succeeded := 0
 	failed := 0
 
-	display.PrintInfo("Matching %d tracks from Spotify to Deezer...", total)
+	ui.InfoWithIcon("Matching %d tracks from Spotify to Deezer...", total)
 	fmt.Println()
 
 	for i, track := range tracks {
@@ -387,11 +558,11 @@ func downloadSpotifyTracksIndividuallyImproved(tracks []models.Track, downloadPa
 		}
 
 		trackName := fmt.Sprintf("%s by %s", track.Title, joinArtistNames(track.Artists))
-		display.PrintInfo("[%d/%d] Searching for: %s", i+1, total, trackName)
+		ui.InfoWithIcon("[%d/%d] Searching for: %s", i+1, total, trackName)
 
 		deezerTrack, err := api.SearchTrackOnDeezer(&track)
 		if err != nil {
-			display.PrintError("Not found on Deezer: %v", err)
+			ui.ErrorWithIcon("Not found on Deezer: %v", err)
 			failed++
 			continue
 		}
@@ -402,7 +573,7 @@ func downloadSpotifyTracksIndividuallyImproved(tracks []models.Track, downloadPa
 		// Download the track
 		err = downloadTrackImproved(deezerTrack, downloadPath, quality, customFilename)
 		if err != nil {
-			display.PrintError("Download failed: %v", err)
+			ui.ErrorWithIcon("Download failed: %v", err)
 			failed++
 			continue
 		}
@@ -410,7 +581,30 @@ func downloadSpotifyTracksIndividuallyImproved(tracks []models.Track, downloadPa
 		succeeded++
 	}
 
-	display.PrintDownloadSummary(succeeded, failed, total)
+	fmt.Println()
+	fmt.Println(strings.Repeat("─", 50))
+	ui.InfoBold("Download Summary")
+	fmt.Println(strings.Repeat("─", 50))
+	
+	if succeeded > 0 {
+		ui.SuccessWithIcon("Succeeded: %d", succeeded)
+	}
+	if failed > 0 {
+		ui.ErrorWithIcon("Failed:    %d", failed)
+	}
+	fmt.Printf("  Total:     %d\n", total)
+	
+	if failed == 0 {
+		fmt.Println()
+		ui.SuccessWithIcon("All downloads completed successfully!")
+	} else if succeeded == 0 {
+		fmt.Println()
+		ui.ErrorWithIcon("All downloads failed.")
+	} else {
+		fmt.Println()
+		ui.WarningWithIcon("Some downloads failed. Check the errors above.")
+	}
+	fmt.Println(strings.Repeat("─", 50))
 
 	if failed > 0 {
 		return fmt.Errorf("%d out of %d tracks failed to download", failed, total)
@@ -439,7 +633,7 @@ func downloadTrackImproved(track types.TrackType, downloadPath string, quality i
 	fullPath := filepath.Join(downloadPath, fmt.Sprintf("%s.%s", utils.SanitizeFileName(customFilename), ext))
 	
 	if _, err := os.Stat(fullPath); err == nil {
-		display.PrintFileExists(filepath.Base(fullPath))
+		ui.Dim("✓ File already exists: %s", filepath.Base(fullPath))
 		return nil
 	}
 
@@ -447,7 +641,7 @@ func downloadTrackImproved(track types.TrackType, downloadPath string, quality i
 	var progressBar *ui.SimpleProgress
 	progressCallback := func(progress float64, downloaded, total int64) {
 		if progressBar == nil && total > 0 {
-			progressBar = display.StartProgress(track.SNG_ID, total, customFilename)
+			progressBar = ui.NewSimpleProgress(customFilename, total)
 		}
 		if progressBar != nil && total > 0 {
 			progressBar.Update(downloaded)
@@ -474,7 +668,7 @@ func downloadTrackImproved(track types.TrackType, downloadPath string, quality i
 	}
 
 	if progressBar != nil {
-		display.FinishProgress(track.SNG_ID)
+		progressBar.Finish()
 	}
 
 	return nil

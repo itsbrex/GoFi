@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/d-fi/GoFi/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -10,7 +11,11 @@ var authCmd = &cobra.Command{
 	Short: "Authenticate with music services",
 	Long:  `Authenticate with supported music services like Spotify and Deezer.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
+		dm := ui.NewDisplayManager()
+		dm.PrintHeader("Authentication")
+		dm.PrintInfo("Please specify a service to authenticate with:")
+		dm.PrintInfo("  gofi auth spotify - Authenticate with Spotify")
+		dm.PrintInfo("  gofi auth deezer  - Authenticate with Deezer")
 	},
 }
 

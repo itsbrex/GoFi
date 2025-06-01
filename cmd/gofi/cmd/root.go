@@ -1,12 +1,12 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 
+	"github.com/d-fi/GoFi/internal/ui"
 	"github.com/d-fi/GoFi/logger"
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
@@ -33,7 +33,7 @@ You can download tracks, albums, and playlists in different qualities.`,
 		// Set up logging
 		level, err := zerolog.ParseLevel(logLevel)
 		if err != nil {
-			fmt.Printf("Warning: Invalid log level '%s', defaulting to 'info'\n", logLevel)
+			ui.Warning("Invalid log level '%s', defaulting to 'info'", logLevel)
 			level = zerolog.InfoLevel
 		}
 		logger.SetLogLevel(level)
@@ -42,14 +42,14 @@ You can download tracks, albums, and playlists in different qualities.`,
 		if downloadPath != "" {
 			err := os.MkdirAll(downloadPath, 0755)
 			if err != nil {
-				fmt.Printf("Error creating download directory: %v\n", err)
+				ui.ErrorWithIcon("Error creating download directory: %v", err)
 				os.Exit(1)
 			}
 			
 			// Convert to absolute path
 			absPath, err := filepath.Abs(downloadPath)
 			if err != nil {
-				fmt.Printf("Error resolving download path: %v\n", err)
+				ui.ErrorWithIcon("Error resolving download path: %v", err)
 				os.Exit(1)
 			}
 			downloadPath = absPath
@@ -61,7 +61,7 @@ You can download tracks, albums, and playlists in different qualities.`,
 // This is called by main.main(). It only needs to happen once to the rootCmd.
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		ui.Error("%v", err)
 		os.Exit(1)
 	}
 }
@@ -72,13 +72,13 @@ func init() {
 	
 	// Check for GOFI_* environment variables and set defaults
 	defaultOutput := getEnvOrDefault("GOFI_OUTPUT_DIR", "./downloads")
-	defaultQuality := getEnvIntOrDefault("GOFI_QUALITY", 3)
+	defaultQuality := getEnvIntOrDefault("GOFI_QUALITY", 9)
 	defaultLogLevel := getEnvOrDefault("GOFI_LOG_LEVEL", "info")
 	
 	// Validate quality value from environment
 	if defaultQuality != 1 && defaultQuality != 3 && defaultQuality != 9 {
-		fmt.Printf("Warning: Invalid GOFI_QUALITY value '%d'. Must be 1, 3, or 9. Using default: 3\n", defaultQuality)
-		defaultQuality = 3
+		ui.Warning("Invalid GOFI_QUALITY value '%d'. Must be 1, 3, or 9. Using default: 9", defaultQuality)
+		defaultQuality = 9
 	}
 	
 	// Persistent flags that are global across all commands
@@ -147,7 +147,7 @@ func getEnvIntOrDefault(key string, defaultValue int) int {
 		if intValue, err := strconv.Atoi(value); err == nil {
 			return intValue
 		}
-		fmt.Printf("Warning: Invalid integer value '%s' for %s\n", value, key)
+		ui.Warning("Invalid integer value '%s' for %s", value, key)
 	}
 	return defaultValue
 }

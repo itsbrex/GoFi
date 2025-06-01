@@ -2,10 +2,10 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/d-fi/GoFi/internal/services/spotify"
+	"github.com/d-fi/GoFi/internal/ui"
 	"github.com/d-fi/GoFi/logger"
 	spotifyClient "github.com/zmb3/spotify/v2"
 )
@@ -31,7 +31,7 @@ func getAuthenticatedSpotifyClient(ctx context.Context) (*spotifyClient.Client, 
 		// This is not necessarily an error, just means we need to authenticate.
 		// Logged as Info level. The calling function decides if it's fatal.
 		logger.Info("Could not automatically retrieve Spotify token (may need initial auth): %v", err)
-		fmt.Println("Could not retrieve Spotify token. Please run 'gofi auth spotify' first.")
+		ui.InfoWithIcon("Could not retrieve Spotify token. Please run 'gofi auth spotify' first.")
 		return nil, authService // Return authService even if client is nil
 	}
 	logger.Debug("Successfully obtained authenticated Spotify client.")

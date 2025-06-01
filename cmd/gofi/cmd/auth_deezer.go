@@ -6,7 +6,7 @@ import (
 	"runtime"
 
 	"github.com/d-fi/GoFi/internal/auth"
-	"github.com/fatih/color"
+	"github.com/d-fi/GoFi/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -17,27 +17,32 @@ var authDeezerCmd = &cobra.Command{
 This command will automatically check Chrome, Firefox, Edge, Arc, and Safari (on macOS)
 for the Deezer ARL cookie and save it to your environment.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		dm := ui.NewDisplayManager()
+		
 		// Try to get ARL from browser cookies
-		fmt.Println("🔍 Searching for Deezer ARL cookie in your browsers...")
+		dm.PrintHeader("Deezer Authentication")
+		dm.PrintInfo("Searching for Deezer ARL cookie in your browsers...")
 		
 		arl, err := auth.GetARLFromAnyBrowser()
 		if err != nil {
-			color.Red("❌ Failed to find Deezer ARL cookie: %v", err)
-			fmt.Println("\nPlease make sure you are logged into Deezer in one of the following browsers:")
-			fmt.Println("  • Chrome")
-			fmt.Println("  • Firefox")
-			fmt.Println("  • Edge")
-			fmt.Println("  • Arc")
+			dm.PrintError("Failed to find Deezer ARL cookie: %v", err)
+			fmt.Println()
+			dm.PrintInfo("Please make sure you are logged into Deezer in one of the following browsers:")
+			dm.PrintInfo("  • Chrome")
+			dm.PrintInfo("  • Firefox")
+			dm.PrintInfo("  • Edge")
+			dm.PrintInfo("  • Arc")
 			if runtime.GOOS == "darwin" {
-				fmt.Println("  • Safari")
+				dm.PrintInfo("  • Safari")
 			}
-			fmt.Println("\nAlternatively, you can set the DEEZER_ARL environment variable manually.")
+			fmt.Println()
+			dm.PrintInfo("Alternatively, you can set the DEEZER_ARL environment variable manually.")
 			os.Exit(1)
 		}
 
 		// Validate the ARL token
 		if err := auth.ValidateARLToken(arl); err != nil {
-			color.Red("❌ Invalid ARL token: %v", err)
+			dm.PrintError("Invalid ARL token: %v", err)
 			os.Exit(1)
 		}
 
@@ -51,17 +56,18 @@ for the Deezer ARL cookie and save it to your environment.`,
 		
 		// Save to .env file
 		if err := auth.SaveARLToEnv(cleanARL); err != nil {
-			color.Yellow("⚠️  Failed to save ARL to .env file: %v", err)
-			fmt.Println("You can manually set the DEEZER_ARL environment variable.")
+			dm.PrintWarning("Failed to save ARL to .env file: %v", err)
+			dm.PrintInfo("You can manually set the DEEZER_ARL environment variable.")
 		} else {
-			color.Green("✅ ARL token saved to .env file")
+			dm.PrintSuccess("ARL token saved to .env file")
 		}
 
 		// Also set it in the current environment
 		os.Setenv("DEEZER_ARL", cleanARL)
 
-		color.Green("\n✅ Successfully authenticated with Deezer!")
-		fmt.Println("You can now download music from Deezer.")
+		fmt.Println()
+		dm.PrintSuccess("Successfully authenticated with Deezer!")
+		dm.PrintInfo("You can now download music from Deezer.")
 		
 		// Show a preview of the ARL (masked for security)
 		if len(arl) > 20 {
@@ -87,7 +93,8 @@ for the Deezer ARL cookie and save it to your environment.`,
 				end = arl[len(arl)-10:]
 			}
 			
-			fmt.Printf("\nARL Token: %s...%s\n", start, end)
+			fmt.Println()
+			dm.PrintInfo("ARL Token: %s...%s", start, end)
 		}
 	},
 }
