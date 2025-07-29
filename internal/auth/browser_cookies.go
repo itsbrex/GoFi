@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -202,8 +203,12 @@ func (cr *CookieReader) getChromiumCookie(dbPath, name, domain string) (string, 
 		return "", fmt.Errorf("failed to query cookie: %w", err)
 	}
 
-	// If we have a plain text value, return it
+	// If we have a plain text value, URL decode it and return it
 	if value != "" {
+		// URL decode in case it's percent-encoded
+		if decoded, err := url.QueryUnescape(value); err == nil {
+			value = decoded
+		}
 		return value, nil
 	}
 
@@ -227,6 +232,10 @@ func (cr *CookieReader) getChromiumCookie(dbPath, name, domain string) (string, 
 				}
 			}
 			if isPrintable && len(possibleValue) > 50 {
+				// URL decode in case it's percent-encoded
+				if decoded, err := url.QueryUnescape(possibleValue); err == nil {
+					possibleValue = decoded
+				}
 				return possibleValue, nil
 			}
 		}
@@ -235,6 +244,11 @@ func (cr *CookieReader) getChromiumCookie(dbPath, name, domain string) (string, 
 	decrypted, err := cr.decryptChromiumCookie(encryptedValue)
 	if err != nil {
 		return "", fmt.Errorf("failed to decrypt cookie: %w", err)
+	}
+
+	// URL decode the result in case it's percent-encoded
+	if decoded, err := url.QueryUnescape(decrypted); err == nil {
+		decrypted = decoded
 	}
 
 	return decrypted, nil
@@ -373,17 +387,63 @@ func (cr *CookieReader) decryptAES128CBC(key, encrypted []byte) (string, error) 
 
 	// Clean the result - remove any non-printable characters at the beginning
 	result := string(decrypted)
-	// Find the first printable character
-	startIdx := 0
-	for i := 0; i < len(result); i++ {
-		if result[i] >= 32 && result[i] <= 126 {
-			startIdx = i
-			break
+	
+	// Find the start of what looks like a valid ARL token
+	// ARL tokens typically start with alphanumeric characters and are long
+	startIdx := -1
+	for i := 0; i < len(result)-50; i++ { // Need at least 50 chars for a valid ARL
+		// Look for a sequence that starts with alphanumeric and continues for a reasonable length
+		if (result[i] >= 'a' && result[i] <= 'z') || (result[i] >= 'A' && result[i] <= 'Z') || (result[i] >= '0' && result[i] <= '9') {
+			// Check if the next several characters are also valid ARL characters
+			validSequence := true
+			validCount := 0
+			for j := i; j < len(result) && j < i+20; j++ {
+				char := result[j]
+				if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || 
+				   char == '_' || char == '-' || char == '.' || char == '~' || char == '+' || char == '/' || char == '=' {
+					validCount++
+				} else {
+					validSequence = false
+					break
+				}
+			}
+			// If we found a good sequence of valid characters, use this as the start
+			if validSequence && validCount >= 10 {
+				startIdx = i
+				break
+			}
 		}
 	}
 	
-	if startIdx > 0 {
+	if startIdx >= 0 {
 		result = result[startIdx:]
+	}
+	
+	// Additional check: if result starts with a single non-hex character followed by a long hex string,
+	// it might be a decryption artifact - remove the first character
+	if len(result) > 100 && len(result) > 1 {
+		firstChar := result[0]
+		// If first character is not a hex digit but the rest looks like an ARL token
+		if !((firstChar >= '0' && firstChar <= '9') || (firstChar >= 'a' && firstChar <= 'f')) {
+			// Check if everything after the first character looks like a valid ARL token
+			possibleARL := result[1:]
+			isValidARL := true
+			hexCount := 0
+			for _, char := range possibleARL {
+				if (char >= 'a' && char <= 'f') || (char >= '0' && char <= '9') {
+					hexCount++
+				} else if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || 
+				            char == '_' || char == '-' || char == '.' || char == '~' || 
+				            char == '+' || char == '/' || char == '=') {
+					isValidARL = false
+					break
+				}
+			}
+			// If the rest looks like a valid ARL with mostly hex characters, remove the first character
+			if isValidARL && float64(hexCount) > float64(len(possibleARL))*0.8 {
+				result = possibleARL
+			}
+		}
 	}
 	
 	return strings.TrimSpace(result), nil
@@ -405,6 +465,11 @@ func (cr *CookieReader) getFirefoxCookie(dbPath, name, domain string) (string, e
 			return "", fmt.Errorf("cookie '%s' not found for domain '%s'", name, domain)
 		}
 		return "", fmt.Errorf("failed to query Firefox cookie: %w", err)
+	}
+
+	// URL decode in case it's percent-encoded
+	if decoded, err := url.QueryUnescape(value); err == nil {
+		value = decoded
 	}
 
 	return value, nil
@@ -495,7 +560,12 @@ func ParseCookieString(cookieString string) (string, error) {
 		for _, cookie := range cookies {
 			parts := strings.SplitN(strings.TrimSpace(cookie), "=", 2)
 			if len(parts) == 2 && strings.ToLower(parts[0]) == "arl" {
-				return strings.TrimSpace(parts[1]), nil
+				value := strings.TrimSpace(parts[1])
+				// URL decode in case it's percent-encoded
+				if decoded, err := url.QueryUnescape(value); err == nil {
+					value = decoded
+				}
+				return value, nil
 			}
 		}
 	}
