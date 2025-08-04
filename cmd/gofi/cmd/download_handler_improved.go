@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/d-fi/GoFi/api"
@@ -19,7 +20,7 @@ import (
 )
 
 // downloadHandlerImproved processes downloads with improved UI
-func downloadHandlerImproved(url string, downloadPath string, quality int) error {
+func downloadHandlerImproved(url string, downloadPath string, quality int, concurrency int) error {
 	ctx := context.Background()
 	
 	// Parse the URL to identify its type
@@ -31,12 +32,12 @@ func downloadHandlerImproved(url string, downloadPath string, quality int) error
 
 	// Handle Spotify URLs
 	if parsedInfo.Source == "spotify" {
-		return handleSpotifyDownloadImproved(ctx, parsedInfo, downloadPath, quality)
+		return handleSpotifyDownloadImproved(ctx, parsedInfo, downloadPath, quality, concurrency)
 	}
 
 	// Handle Deezer URLs directly
 	if parsedInfo.Source == "deezer" {
-		return handleDeezerDownloadImproved(ctx, parsedInfo, downloadPath, quality)
+		return handleDeezerDownloadImproved(ctx, parsedInfo, downloadPath, quality, concurrency)
 	}
 
 	ui.ErrorWithIcon("Unsupported URL source: %s", parsedInfo.Source)
@@ -44,7 +45,7 @@ func downloadHandlerImproved(url string, downloadPath string, quality int) error
 }
 
 // handleSpotifyDownloadImproved processes Spotify URLs with improved UI
-func handleSpotifyDownloadImproved(ctx context.Context, parsedInfo *internalutils.ParsedURLInfo, downloadPath string, quality int) error {
+func handleSpotifyDownloadImproved(ctx context.Context, parsedInfo *internalutils.ParsedURLInfo, downloadPath string, quality int, concurrency int) error {
 	// Get the Spotify client
 	client, _ := getAuthenticatedSpotifyClient(ctx)
 	if client == nil {
@@ -66,10 +67,10 @@ func handleSpotifyDownloadImproved(ctx context.Context, parsedInfo *internalutil
 		return handleSpotifyTrackImproved(ctx, spotifyService, parsedInfo.ID, downloadPath, quality)
 	
 	case internalutils.SpotifyAlbum:
-		return handleSpotifyAlbumImproved(ctx, spotifyService, parsedInfo.ID, downloadPath, quality)
+		return handleSpotifyAlbumImproved(ctx, spotifyService, parsedInfo.ID, downloadPath, quality, concurrency)
 	
 	case internalutils.SpotifyPlaylist:
-		return handleSpotifyPlaylistImproved(ctx, spotifyService, parsedInfo.ID, downloadPath, quality)
+		return handleSpotifyPlaylistImproved(ctx, spotifyService, parsedInfo.ID, downloadPath, quality, concurrency)
 	
 	default:
 		ui.ErrorWithIcon("Unsupported Spotify content type: %s", parsedInfo.Type)
@@ -78,17 +79,17 @@ func handleSpotifyDownloadImproved(ctx context.Context, parsedInfo *internalutil
 }
 
 // handleDeezerDownloadImproved processes Deezer URLs with improved UI
-func handleDeezerDownloadImproved(ctx context.Context, parsedInfo *internalutils.ParsedURLInfo, downloadPath string, quality int) error {
+func handleDeezerDownloadImproved(ctx context.Context, parsedInfo *internalutils.ParsedURLInfo, downloadPath string, quality int, concurrency int) error {
 	// Process based on content type
 	switch parsedInfo.Type {
 	case internalutils.DeezerTrack:
 		return handleDeezerTrackImproved(parsedInfo.ID, downloadPath, quality)
 	
 	case internalutils.DeezerAlbum:
-		return handleDeezerAlbumImproved(parsedInfo.ID, downloadPath, quality)
+		return handleDeezerAlbumImproved(parsedInfo.ID, downloadPath, quality, concurrency)
 	
 	case internalutils.DeezerPlaylist:
-		return handleDeezerPlaylistImproved(parsedInfo.ID, downloadPath, quality)
+		return handleDeezerPlaylistImproved(parsedInfo.ID, downloadPath, quality, concurrency)
 	
 	default:
 		ui.ErrorWithIcon("Unsupported Deezer content type: %s", parsedInfo.Type)
@@ -191,7 +192,7 @@ func handleDeezerTrackImproved(id string, downloadPath string, quality int) erro
 }
 
 // handleSpotifyAlbumImproved handles downloading a Spotify album with improved UI
-func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.SpotifyService, id string, downloadPath string, quality int) error {
+func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.SpotifyService, id string, downloadPath string, quality int, concurrency int) error {
 	ui.Header("═══ ♫ Spotify Album Download ═══")
 	fmt.Println()
 	
@@ -228,7 +229,7 @@ func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.Spo
 	if err != nil {
 		fmt.Println(ui.ErrorString("✗"))
 		ui.WarningWithIcon("Could not find album on Deezer. Trying to match individual tracks...")
-		return downloadSpotifyTracksIndividuallyImproved(tracks, downloadPath, quality, "")
+		return downloadSpotifyTracksIndividuallyImproved(tracks, downloadPath, quality, "", concurrency)
 	}
 	fmt.Println(ui.SuccessString("✓"))
 
@@ -244,33 +245,22 @@ func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.Spo
 
 	// Download the tracks
 	total := len(albumTracks.Data)
-	succeeded := 0
-	failed := 0
-
-	ui.InfoWithIcon("Starting download of %d tracks...", total)
+	
+	ui.InfoWithIcon("Starting download of %d tracks with %d concurrent downloads...", total, concurrency)
 	fmt.Println()
 
-	for i, track := range albumTracks.Data {
+	// Convert track data to downloadable tracks
+	trackList := make([]types.TrackType, 0, total)
+	for _, track := range albumTracks.Data {
 		trackInfo, err := api.GetTrackInfo(fmt.Sprint(track.SNG_ID))
 		if err != nil {
-			ui.ErrorWithIcon("[%d/%d] Failed to get info for: %s", i+1, total, track.SNG_TITLE)
-			failed++
+			ui.ErrorWithIcon("Failed to get info for: %s", track.SNG_TITLE)
 			continue
 		}
-		
-		// Custom filename for the track: Artist - Title
-		customFilename := fmt.Sprintf("%s - %s", trackInfo.ART_NAME, trackInfo.SNG_TITLE)
-		
-		// Show download status on same line (progress bar will overwrite)
-		fmt.Printf("\r\033[K%s [%d/%d] Downloading: %s", ui.IconInfo, i+1, total, customFilename)
-		err = downloadTrackImproved(trackInfo, albumPath, quality, customFilename)
-		if err != nil {
-			ui.ErrorWithIcon("[%d/%d] Failed: %s - %v", i+1, total, customFilename, err)
-			failed++
-		} else {
-			succeeded++
-		}
+		trackList = append(trackList, trackInfo)
 	}
+	
+	succeeded, failed := downloadTracksConcurrently(trackList, albumPath, quality, concurrency)
 
 	fmt.Println()
 	fmt.Println(strings.Repeat("─", 50))
@@ -304,7 +294,7 @@ func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.Spo
 }
 
 // handleDeezerAlbumImproved handles downloading a Deezer album with improved UI
-func handleDeezerAlbumImproved(id string, downloadPath string, quality int) error {
+func handleDeezerAlbumImproved(id string, downloadPath string, quality int, concurrency int) error {
 	ui.Header("═══ ♫ Deezer Album Download ═══")
 	fmt.Println()
 	
@@ -346,33 +336,22 @@ func handleDeezerAlbumImproved(id string, downloadPath string, quality int) erro
 
 	// Download the tracks
 	total := len(albumTracks.Data)
-	succeeded := 0
-	failed := 0
-
-	ui.InfoWithIcon("Starting download of %d tracks...", total)
+	
+	ui.InfoWithIcon("Starting download of %d tracks with %d concurrent downloads...", total, concurrency)
 	fmt.Println()
 
-	for i, track := range albumTracks.Data {
+	// Convert track data to downloadable tracks
+	trackList := make([]types.TrackType, 0, total)
+	for _, track := range albumTracks.Data {
 		trackInfo, err := api.GetTrackInfo(fmt.Sprint(track.SNG_ID))
 		if err != nil {
-			ui.ErrorWithIcon("[%d/%d] Failed to get info for: %s", i+1, total, track.SNG_TITLE)
-			failed++
+			ui.ErrorWithIcon("Failed to get info for: %s", track.SNG_TITLE)
 			continue
 		}
-		
-		// Custom filename for the track: Artist - Title
-		customFilename := fmt.Sprintf("%s - %s", trackInfo.ART_NAME, trackInfo.SNG_TITLE)
-		
-		// Show download status on same line (progress bar will overwrite)
-		fmt.Printf("\r\033[K%s [%d/%d] Downloading: %s", ui.IconInfo, i+1, total, customFilename)
-		err = downloadTrackImproved(trackInfo, albumPath, quality, customFilename)
-		if err != nil {
-			ui.ErrorWithIcon("[%d/%d] Failed: %s - %v", i+1, total, customFilename, err)
-			failed++
-		} else {
-			succeeded++
-		}
+		trackList = append(trackList, trackInfo)
 	}
+	
+	succeeded, failed := downloadTracksConcurrently(trackList, albumPath, quality, concurrency)
 
 	fmt.Println()
 	fmt.Println(strings.Repeat("─", 50))
@@ -406,7 +385,7 @@ func handleDeezerAlbumImproved(id string, downloadPath string, quality int) erro
 }
 
 // handleSpotifyPlaylistImproved handles downloading a Spotify playlist with improved UI
-func handleSpotifyPlaylistImproved(ctx context.Context, spotifyService *spotify.SpotifyService, id string, downloadPath string, quality int) error {
+func handleSpotifyPlaylistImproved(ctx context.Context, spotifyService *spotify.SpotifyService, id string, downloadPath string, quality int, concurrency int) error {
 	ui.Header("═══ ♫ Spotify Playlist Download ═══")
 	fmt.Println()
 	
@@ -441,11 +420,11 @@ func handleSpotifyPlaylistImproved(ctx context.Context, spotifyService *spotify.
 	// Create a folder for the playlist using just the playlist name
 	playlistPath := filepath.Join(downloadPath, playlist.Title)
 
-	return downloadSpotifyTracksIndividuallyImproved(tracks, playlistPath, quality, "")
+	return downloadSpotifyTracksIndividuallyImproved(tracks, playlistPath, quality, "", concurrency)
 }
 
 // handleDeezerPlaylistImproved handles downloading a Deezer playlist with improved UI
-func handleDeezerPlaylistImproved(id string, downloadPath string, quality int) error {
+func handleDeezerPlaylistImproved(id string, downloadPath string, quality int, concurrency int) error {
 	ui.Header("═══ ♫ Deezer Playlist Download ═══")
 	fmt.Println()
 	
@@ -486,33 +465,22 @@ func handleDeezerPlaylistImproved(id string, downloadPath string, quality int) e
 
 	// Download the tracks
 	total := len(tracks.Data)
-	succeeded := 0
-	failed := 0
-
-	ui.InfoWithIcon("Starting download of %d tracks...", total)
+	
+	ui.InfoWithIcon("Starting download of %d tracks with %d concurrent downloads...", total, concurrency)
 	fmt.Println()
 
-	for i, track := range tracks.Data {
+	// Convert track data to downloadable tracks
+	trackList := make([]types.TrackType, 0, total)
+	for _, track := range tracks.Data {
 		trackInfo, err := api.GetTrackInfo(fmt.Sprint(track.SNG_ID))
 		if err != nil {
-			ui.ErrorWithIcon("[%d/%d] Failed to get info for: %s by %s", i+1, total, track.SNG_TITLE, track.ART_NAME)
-			failed++
+			ui.ErrorWithIcon("Failed to get info for: %s by %s", track.SNG_TITLE, track.ART_NAME)
 			continue
 		}
-		
-		// Custom filename for the track: Artist - Title
-		customFilename := fmt.Sprintf("%s - %s", trackInfo.ART_NAME, trackInfo.SNG_TITLE)
-		
-		// Show download status on same line (progress bar will overwrite)
-		fmt.Printf("\r\033[K%s [%d/%d] Downloading: %s", ui.IconInfo, i+1, total, customFilename)
-		err = downloadTrackImproved(trackInfo, playlistPath, quality, customFilename)
-		if err != nil {
-			ui.ErrorWithIcon("[%d/%d] Failed: %s - %v", i+1, total, customFilename, err)
-			failed++
-		} else {
-			succeeded++
-		}
+		trackList = append(trackList, trackInfo)
 	}
+	
+	succeeded, failed := downloadTracksConcurrently(trackList, playlistPath, quality, concurrency)
 
 	fmt.Println()
 	fmt.Println(strings.Repeat("─", 50))
@@ -546,49 +514,13 @@ func handleDeezerPlaylistImproved(id string, downloadPath string, quality int) e
 }
 
 // downloadSpotifyTracksIndividuallyImproved searches for and downloads each track individually with improved UI
-func downloadSpotifyTracksIndividuallyImproved(tracks []models.Track, downloadPath string, quality int, playlistName string) error {
+func downloadSpotifyTracksIndividuallyImproved(tracks []models.Track, downloadPath string, quality int, playlistName string, concurrency int) error {
 	total := len(tracks)
-	succeeded := 0
-	failed := 0
-
-	ui.InfoWithIcon("Matching %d tracks from Spotify to Deezer...", total)
+	
+	ui.InfoWithIcon("Matching %d tracks from Spotify to Deezer with %d concurrent downloads...", total, concurrency)
 	fmt.Println()
 
-	for i, track := range tracks {
-		// Add a small delay to avoid overwhelming the Deezer API
-		if i > 0 && i%3 == 0 {
-			time.Sleep(1 * time.Second)
-		}
-
-		trackName := fmt.Sprintf("%s by %s", track.Title, joinArtistNames(track.Artists))
-		// Use carriage return to stay on the same line
-		fmt.Printf("\r\033[K%s [%d/%d] Searching for: %s", ui.IconInfo, i+1, total, trackName)
-
-		deezerTrack, err := api.SearchTrackOnDeezer(&track)
-		if err != nil {
-			// Clear the search line and show error
-			fmt.Printf("\r\033[K")
-			ui.ErrorWithIcon("[%d/%d] Not found on Deezer: %s - %v", i+1, total, trackName, err)
-			failed++
-			continue
-		}
-
-		// Always use "Artist - Title" format for all tracks
-		customFilename := fmt.Sprintf("%s - %s", deezerTrack.ART_NAME, deezerTrack.SNG_TITLE)
-
-		// Clear the search line before starting download (the progress bar will take over)
-		fmt.Printf("\r\033[K")
-		
-		// Download the track
-		err = downloadTrackImproved(deezerTrack, downloadPath, quality, customFilename)
-		if err != nil {
-			ui.ErrorWithIcon("[%d/%d] Download failed: %s - %v", i+1, total, customFilename, err)
-			failed++
-			continue
-		}
-
-		succeeded++
-	}
+	succeeded, failed := downloadSpotifyTracksConcurrently(tracks, downloadPath, quality, concurrency)
 
 	fmt.Println()
 	fmt.Println(strings.Repeat("─", 50))
@@ -684,4 +616,174 @@ func downloadTrackImproved(track types.TrackType, downloadPath string, quality i
 	}
 
 	return nil
+}
+
+// downloadTracksConcurrently downloads multiple tracks concurrently
+func downloadTracksConcurrently(tracks []types.TrackType, downloadPath string, quality int, concurrency int) (succeeded int, failed int) {
+	total := len(tracks)
+	if total == 0 {
+		return 0, 0
+	}
+	
+	// Channel for work items
+	workChan := make(chan types.TrackType, total)
+	resultChan := make(chan bool, total)
+	
+	// Create wait group
+	var wg sync.WaitGroup
+	
+	// Mutex for thread-safe console output
+	var outputMux sync.Mutex
+	downloadCount := 0
+	
+	// Start worker goroutines
+	for i := 0; i < concurrency; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			
+			for track := range workChan {
+				// Custom filename for the track: Artist - Title
+				customFilename := fmt.Sprintf("%s - %s", track.ART_NAME, track.SNG_TITLE)
+				
+				// Update status
+				outputMux.Lock()
+				downloadCount++
+				fmt.Printf("\r\033[K%s [%d/%d] Downloading: %s", ui.IconInfo, downloadCount, total, customFilename)
+				outputMux.Unlock()
+				
+				err := downloadTrackImproved(track, downloadPath, quality, customFilename)
+				if err != nil {
+					outputMux.Lock()
+					fmt.Printf("\r\033[K")
+					ui.ErrorWithIcon("[%d/%d] Failed: %s - %v", downloadCount, total, customFilename, err)
+					outputMux.Unlock()
+					resultChan <- false
+				} else {
+					resultChan <- true
+				}
+			}
+		}(i)
+	}
+	
+	// Send work to workers
+	for _, track := range tracks {
+		workChan <- track
+	}
+	close(workChan)
+	
+	// Wait for all workers to finish
+	wg.Wait()
+	close(resultChan)
+	
+	// Count results
+	for success := range resultChan {
+		if success {
+			succeeded++
+		} else {
+			failed++
+		}
+	}
+	
+	// Clear the progress line
+	fmt.Printf("\r\033[K")
+	
+	return succeeded, failed
+}
+
+// downloadSpotifyTracksConcurrently searches for and downloads Spotify tracks concurrently
+func downloadSpotifyTracksConcurrently(tracks []models.Track, downloadPath string, quality int, concurrency int) (succeeded int, failed int) {
+	total := len(tracks)
+	if total == 0 {
+		return 0, 0
+	}
+	
+	// Channel for work items
+	workChan := make(chan models.Track, total)
+	resultChan := make(chan bool, total)
+	
+	// Create wait group
+	var wg sync.WaitGroup
+	
+	// Mutex for thread-safe console output
+	var outputMux sync.Mutex
+	searchCount := 0
+	downloadCount := 0
+	
+	// Start worker goroutines
+	for i := 0; i < concurrency; i++ {
+		wg.Add(1)
+		go func(workerID int) {
+			defer wg.Done()
+			
+			for track := range workChan {
+				trackName := fmt.Sprintf("%s by %s", track.Title, joinArtistNames(track.Artists))
+				
+				// Update search status
+				outputMux.Lock()
+				searchCount++
+				fmt.Printf("\r\033[K%s [%d/%d] Searching for: %s", ui.IconInfo, searchCount, total, trackName)
+				outputMux.Unlock()
+				
+				// Add a small delay to avoid overwhelming the Deezer API
+				if searchCount > 1 && searchCount%3 == 0 {
+					time.Sleep(1 * time.Second)
+				}
+				
+				deezerTrack, err := api.SearchTrackOnDeezer(&track)
+				if err != nil {
+					outputMux.Lock()
+					fmt.Printf("\r\033[K")
+					ui.ErrorWithIcon("[%d/%d] Not found on Deezer: %s - %v", searchCount, total, trackName, err)
+					outputMux.Unlock()
+					resultChan <- false
+					continue
+				}
+				
+				// Custom filename for the track: Artist - Title
+				customFilename := fmt.Sprintf("%s - %s", deezerTrack.ART_NAME, deezerTrack.SNG_TITLE)
+				
+				// Update download status
+				outputMux.Lock()
+				downloadCount++
+				fmt.Printf("\r\033[K%s [%d/%d] Downloading: %s", ui.IconInfo, downloadCount, total, customFilename)
+				outputMux.Unlock()
+				
+				err = downloadTrackImproved(deezerTrack, downloadPath, quality, customFilename)
+				if err != nil {
+					outputMux.Lock()
+					fmt.Printf("\r\033[K")
+					ui.ErrorWithIcon("[%d/%d] Download failed: %s - %v", downloadCount, total, customFilename, err)
+					outputMux.Unlock()
+					resultChan <- false
+				} else {
+					resultChan <- true
+				}
+			}
+		}(i)
+	}
+	
+	// Send work to workers
+	for _, track := range tracks {
+		workChan <- track
+	}
+	close(workChan)
+	
+	// Wait for all workers to finish
+	wg.Wait()
+	close(resultChan)
+	
+	// Count results
+	for success := range resultChan {
+		if success {
+			succeeded++
+		} else {
+			failed++
+		}
+	}
+	
+	// Clear the progress line
+	fmt.Printf("\r\033[K")
+	
+	return succeeded, failed
 }

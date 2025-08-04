@@ -71,6 +71,12 @@ gofi -o ~/Music/Downloads -q 3 download https://open.spotify.com/album/1DFixLWuP
 # Download a Spotify playlist in FLAC quality to a specific directory
 gofi -o ~/Music/Playlists -q 9 download https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M
 
+# Download an album with 5 concurrent downloads
+gofi -c 5 download https://www.deezer.com/album/302127
+
+# Download a playlist with only 2 concurrent downloads to be gentle on the API
+gofi -c 2 download https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M
+
 # Download from Deezer URL (no Spotify auth needed)
 gofi -q 9 download https://www.deezer.com/track/3135556
 
@@ -100,7 +106,7 @@ gofi --version
      - CLI command: `cmd/gofi/cmd/auth_spotify.go`
 
 3. **Download Engine**: `download/download.go` handles the actual download of music files
-   - Concurrent downloads for albums/playlists
+   - Concurrent downloads for albums/playlists (configurable 1-10 threads)
    - Quality selection (FLAC, MP3 320kbps, MP3 128kbps)
    - File existence checking to avoid re-downloads
    - Improved error handling with retry logic
@@ -158,6 +164,7 @@ Authentication:
 Configuration (Priority: CLI flags > Environment variables > Default values):
 - `GOFI_OUTPUT_DIR`: Default download directory (default: "./downloads")
 - `GOFI_QUALITY`: Default audio quality - 1, 3, or 9 (default: 3)
+- `GOFI_CONCURRENCY`: Max concurrent downloads - 1 to 10 (default: 5)
 - `GOFI_LOG_LEVEL`: Default log level - debug, info, warn, error (default: "info")
 
 ## Important File Paths
@@ -239,6 +246,12 @@ Current test coverage focuses on:
    - Improved error messages throughout
    - Better handling of API responses
    - Retry logic for network failures
+
+6. **Concurrent Downloads**:
+   - Configurable concurrency (1-10 threads)
+   - Applies to albums and playlists
+   - Thread-safe progress display
+   - Default: 5 concurrent downloads
 
 ## Development Tips
 

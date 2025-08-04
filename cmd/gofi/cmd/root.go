@@ -15,6 +15,7 @@ import (
 var (
 	downloadPath string
 	quality      int
+	concurrency  int
 	logLevel     string
 	version      = "dev" // Set by build flags
 )
@@ -73,6 +74,7 @@ func init() {
 	// Check for GOFI_* environment variables and set defaults
 	defaultOutput := getEnvOrDefault("GOFI_OUTPUT_DIR", "./downloads")
 	defaultQuality := getEnvIntOrDefault("GOFI_QUALITY", 9)
+	defaultConcurrency := getEnvIntOrDefault("GOFI_CONCURRENCY", 5)
 	defaultLogLevel := getEnvOrDefault("GOFI_LOG_LEVEL", "info")
 	
 	// Validate quality value from environment
@@ -81,9 +83,16 @@ func init() {
 		defaultQuality = 9
 	}
 	
+	// Validate concurrency value from environment
+	if defaultConcurrency < 1 || defaultConcurrency > 10 {
+		ui.Warning("Invalid GOFI_CONCURRENCY value '%d'. Must be between 1 and 10. Using default: 5", defaultConcurrency)
+		defaultConcurrency = 5
+	}
+	
 	// Persistent flags that are global across all commands
 	rootCmd.PersistentFlags().StringVarP(&downloadPath, "output", "o", defaultOutput, "Directory to save downloaded files (env: GOFI_OUTPUT_DIR)")
 	rootCmd.PersistentFlags().IntVarP(&quality, "quality", "q", defaultQuality, "Audio quality - 1=128kbps MP3, 3=320kbps MP3, 9=FLAC (env: GOFI_QUALITY)")
+	rootCmd.PersistentFlags().IntVarP(&concurrency, "concurrency", "c", defaultConcurrency, "Max concurrent downloads (1-10) (env: GOFI_CONCURRENCY)")
 	rootCmd.PersistentFlags().StringVarP(&logLevel, "log-level", "l", defaultLogLevel, "Log level - debug, info, warn, error (env: GOFI_LOG_LEVEL)")
 	
 	// Add subcommands

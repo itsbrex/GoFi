@@ -28,7 +28,7 @@ Examples:
 		url := args[0]
 		
 		// Use the improved download handler with better UI
-		err := downloadHandlerImproved(url, downloadPath, quality)
+		err := downloadHandlerImproved(url, downloadPath, quality, concurrency)
 		if err != nil {
 			// Error is already printed by the handler
 			os.Exit(1)

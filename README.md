@@ -14,7 +14,7 @@ GoFi is a Go implementation of a music download tool. It allows you to download 
 - Command-line interface for easy automation
 - Written in Go for high performance and cross-platform compatibility
 - Support for configuration files and environment variables
-- Concurrent downloads for albums and playlists
+- Concurrent downloads for albums and playlists (configurable 1-10 threads)
 
 ## Installation
 
@@ -178,6 +178,9 @@ export GOFI_OUTPUT_DIR="$HOME/Music/Downloads"
 # Set default quality (1=128kbps MP3, 3=320kbps MP3, 9=FLAC)
 export GOFI_QUALITY=9
 
+# Set maximum concurrent downloads (1-10)
+export GOFI_CONCURRENCY=5
+
 # Set default log level (debug, info, warn, error)
 export GOFI_LOG_LEVEL=info
 ```
@@ -274,10 +277,18 @@ Specify quality with the `-q` flag:
 
 - `-o, --output`: Set the download directory
 - `-q, --quality`: Set the audio quality (1, 3, or 9)
+- `-c, --concurrency`: Set max concurrent downloads (1-10, default 5)
 - `-l, --log-level`: Set the log level (debug, info, warn, error)
 
 ```bash
-./gofi -o ./my-music -q 9 -l debug download https://open.spotify.com/album/1DFixLWuPkv3KT3TnV35m3
+# Download with all options
+./gofi -o ./my-music -q 9 -c 5 -l debug download https://open.spotify.com/album/1DFixLWuPkv3KT3TnV35m3
+
+# Download album with 10 concurrent downloads for maximum speed
+./gofi -c 10 download https://www.deezer.com/album/302127
+
+# Download playlist with only 2 concurrent downloads to be gentle on the API
+./gofi -c 2 download https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M
 ```
 
 ## Troubleshooting
