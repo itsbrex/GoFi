@@ -23,11 +23,11 @@ endif
 
 # Build the legacy binary
 build:
-	CGO_ENABLED=0 $(GOBUILD) -ldflags "-s -w" -o $(BINARY_NAME) cmd/main.go
+	CGO_ENABLED=1 $(GOBUILD) -ldflags "-s -w" -o $(BINARY_NAME) cmd/main.go
 
 # Build the new CLI binary
 build-cli:
-	CGO_ENABLED=0 $(GOBUILD) -ldflags "-s -w -X github.com/d-fi/GoFi/cmd/gofi/cmd.version=$$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o $(NEW_BINARY_NAME) cmd/gofi/main.go
+	CGO_ENABLED=1 $(GOBUILD) -ldflags "-s -w -X github.com/d-fi/GoFi/cmd/gofi/cmd.version=$$(git describe --tags --always --dirty 2>/dev/null || echo dev)" -o $(NEW_BINARY_NAME) cmd/gofi/main.go
 
 # Build all binaries
 build-all: build build-cli

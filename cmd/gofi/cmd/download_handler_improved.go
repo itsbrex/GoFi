@@ -261,10 +261,11 @@ func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.Spo
 		// Custom filename for the track: Artist - Title
 		customFilename := fmt.Sprintf("%s - %s", trackInfo.ART_NAME, trackInfo.SNG_TITLE)
 		
-		ui.InfoWithIcon("[%d/%d] Downloading: %s", i+1, total, customFilename)
+		// Show download status on same line (progress bar will overwrite)
+		fmt.Printf("\r\033[K%s [%d/%d] Downloading: %s", ui.IconInfo, i+1, total, customFilename)
 		err = downloadTrackImproved(trackInfo, albumPath, quality, customFilename)
 		if err != nil {
-			ui.ErrorWithIcon("Failed: %v", err)
+			ui.ErrorWithIcon("[%d/%d] Failed: %s - %v", i+1, total, customFilename, err)
 			failed++
 		} else {
 			succeeded++
@@ -362,10 +363,11 @@ func handleDeezerAlbumImproved(id string, downloadPath string, quality int) erro
 		// Custom filename for the track: Artist - Title
 		customFilename := fmt.Sprintf("%s - %s", trackInfo.ART_NAME, trackInfo.SNG_TITLE)
 		
-		ui.InfoWithIcon("[%d/%d] Downloading: %s", i+1, total, customFilename)
+		// Show download status on same line (progress bar will overwrite)
+		fmt.Printf("\r\033[K%s [%d/%d] Downloading: %s", ui.IconInfo, i+1, total, customFilename)
 		err = downloadTrackImproved(trackInfo, albumPath, quality, customFilename)
 		if err != nil {
-			ui.ErrorWithIcon("Failed: %v", err)
+			ui.ErrorWithIcon("[%d/%d] Failed: %s - %v", i+1, total, customFilename, err)
 			failed++
 		} else {
 			succeeded++
@@ -501,10 +503,11 @@ func handleDeezerPlaylistImproved(id string, downloadPath string, quality int) e
 		// Custom filename for the track: Artist - Title
 		customFilename := fmt.Sprintf("%s - %s", trackInfo.ART_NAME, trackInfo.SNG_TITLE)
 		
-		ui.InfoWithIcon("[%d/%d] Downloading: %s", i+1, total, customFilename)
+		// Show download status on same line (progress bar will overwrite)
+		fmt.Printf("\r\033[K%s [%d/%d] Downloading: %s", ui.IconInfo, i+1, total, customFilename)
 		err = downloadTrackImproved(trackInfo, playlistPath, quality, customFilename)
 		if err != nil {
-			ui.ErrorWithIcon("Failed: %v", err)
+			ui.ErrorWithIcon("[%d/%d] Failed: %s - %v", i+1, total, customFilename, err)
 			failed++
 		} else {
 			succeeded++
@@ -558,11 +561,14 @@ func downloadSpotifyTracksIndividuallyImproved(tracks []models.Track, downloadPa
 		}
 
 		trackName := fmt.Sprintf("%s by %s", track.Title, joinArtistNames(track.Artists))
-		ui.InfoWithIcon("[%d/%d] Searching for: %s", i+1, total, trackName)
+		// Use carriage return to stay on the same line
+		fmt.Printf("\r\033[K%s [%d/%d] Searching for: %s", ui.IconInfo, i+1, total, trackName)
 
 		deezerTrack, err := api.SearchTrackOnDeezer(&track)
 		if err != nil {
-			ui.ErrorWithIcon("Not found on Deezer: %v", err)
+			// Clear the search line and show error
+			fmt.Printf("\r\033[K")
+			ui.ErrorWithIcon("[%d/%d] Not found on Deezer: %s - %v", i+1, total, trackName, err)
 			failed++
 			continue
 		}
@@ -570,10 +576,13 @@ func downloadSpotifyTracksIndividuallyImproved(tracks []models.Track, downloadPa
 		// Always use "Artist - Title" format for all tracks
 		customFilename := fmt.Sprintf("%s - %s", deezerTrack.ART_NAME, deezerTrack.SNG_TITLE)
 
+		// Clear the search line before starting download (the progress bar will take over)
+		fmt.Printf("\r\033[K")
+		
 		// Download the track
 		err = downloadTrackImproved(deezerTrack, downloadPath, quality, customFilename)
 		if err != nil {
-			ui.ErrorWithIcon("Download failed: %v", err)
+			ui.ErrorWithIcon("[%d/%d] Download failed: %s - %v", i+1, total, customFilename, err)
 			failed++
 			continue
 		}
@@ -633,7 +642,10 @@ func downloadTrackImproved(track types.TrackType, downloadPath string, quality i
 	fullPath := filepath.Join(downloadPath, fmt.Sprintf("%s.%s", utils.SanitizeFileName(customFilename), ext))
 	
 	if _, err := os.Stat(fullPath); err == nil {
+		// Clear the current line and show file exists message with newline
+		fmt.Printf("\r\033[K")
 		ui.Dim("✓ File already exists: %s", filepath.Base(fullPath))
+		fmt.Println() // Add newline to move to next line
 		return nil
 	}
 

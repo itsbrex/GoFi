@@ -71,7 +71,7 @@ func isValidARLChar(r rune) bool {
 		(r >= 'A' && r <= 'Z') ||
 		(r >= '0' && r <= '9') ||
 		r == '_' || r == '-' || r == '.' || r == '~' ||
-		r == '+' || r == '/' || r == '=' || r == '%'
+		r == '+' || r == '/' || r == '='
 }
 
 // SaveARLToEnv saves the ARL token to a .env file

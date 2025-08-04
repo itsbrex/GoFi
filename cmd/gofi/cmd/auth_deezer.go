@@ -21,20 +21,25 @@ for the Deezer ARL cookie and save it to your environment.`,
 		
 		dm.PrintHeader("Deezer Authentication")
 		
-		// First check if ARL is already in environment
 		var arl string
 		var err error
 		
-		if existingARL := os.Getenv("DEEZER_ARL"); existingARL != "" {
-			dm.PrintInfo("Found existing DEEZER_ARL in environment")
-			arl = existingARL
-		} else {
-			// Try to get ARL from browser cookies
-			dm.PrintInfo("Searching for Deezer ARL cookie in your browsers...")
+		// Always try to get fresh ARL from browser cookies when auth is run
+		dm.PrintInfo("Searching for Deezer ARL cookie in your browsers...")
+		
+		existingARL := os.Getenv("DEEZER_ARL")
+		
+		arl, err = auth.GetARLFromAnyBrowser()
+		if err != nil {
+			dm.PrintError("Failed to find Deezer ARL cookie: %v", err)
 			
-			arl, err = auth.GetARLFromAnyBrowser()
-			if err != nil {
-				dm.PrintError("Failed to find Deezer ARL cookie: %v", err)
+			// If we have an existing ARL and browser extraction failed, offer to keep it
+			if existingARL != "" {
+				fmt.Println()
+				dm.PrintWarning("Browser extraction failed, but you have an existing ARL token")
+				dm.PrintInfo("The existing token will remain in your .env file")
+				arl = existingARL
+			} else {
 				fmt.Println()
 				dm.PrintInfo("Please make sure you are logged into Deezer in one of the following browsers:")
 				dm.PrintInfo("  • Chrome")
@@ -47,6 +52,14 @@ for the Deezer ARL cookie and save it to your environment.`,
 				fmt.Println()
 				dm.PrintInfo("Alternatively, you can set the DEEZER_ARL environment variable manually.")
 				os.Exit(1)
+			}
+		} else {
+			if existingARL != "" && arl != existingARL {
+				dm.PrintSuccess("Found new ARL token from browser (replacing existing)")
+			} else if existingARL != "" && arl == existingARL {
+				dm.PrintInfo("Found same ARL token from browser (no change needed)")
+			} else {
+				dm.PrintSuccess("Found ARL token from browser")
 			}
 		}
 
