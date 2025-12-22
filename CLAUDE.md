@@ -110,6 +110,7 @@ gofi --version
    - Quality selection (FLAC, MP3 320kbps, MP3 128kbps)
    - File existence checking to avoid re-downloads
    - Improved error handling with retry logic
+   - Thread-safe API client with mutex protection (`request/client.go`)
 
 4. **Metadata Management**: Adds appropriate metadata to downloaded files
    - ID3 tags for MP3: `metadata/id3_tag.go`
@@ -252,6 +253,11 @@ Current test coverage focuses on:
    - Applies to albums and playlists
    - Thread-safe progress display
    - Default: 5 concurrent downloads
+
+7. **Thread-Safety**:
+   - Mutex protection for Deezer API initialization
+   - Safe concurrent access to shared session variables
+   - Prevents race conditions during parallel downloads
 
 ## Development Tips
 
