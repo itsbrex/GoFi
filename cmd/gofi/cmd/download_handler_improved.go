@@ -17,6 +17,7 @@ import (
 	internalutils "github.com/d-fi/GoFi/internal/utils"
 	"github.com/d-fi/GoFi/types"
 	"github.com/d-fi/GoFi/utils"
+	"github.com/vbauerster/mpb/v8"
 )
 
 // downloadHandlerImproved processes downloads with improved UI
@@ -141,12 +142,18 @@ func handleSpotifyTrackImproved(ctx context.Context, spotifyService *spotify.Spo
 
 	// Create a folder with the artist name
 	artistFolder := filepath.Join(downloadPath, deezerTrack.ART_NAME)
-	
+
 	// Custom filename for the track: Artist - Title
 	customFilename := fmt.Sprintf("%s - %s", deezerTrack.ART_NAME, deezerTrack.SNG_TITLE)
 
+	// Create progress manager for single track
+	pm := ui.NewProgressManager()
+	defer pm.Wait()
+
+	bar := pm.AddDownloadBar(customFilename, 0)
+
 	// Download the track
-	return downloadTrackImproved(deezerTrack, artistFolder, quality, customFilename)
+	return downloadTrackImproved(deezerTrack, artistFolder, quality, customFilename, bar)
 }
 
 // handleDeezerTrackImproved handles downloading a single Deezer track with improved UI
@@ -183,12 +190,18 @@ func handleDeezerTrackImproved(id string, downloadPath string, quality int) erro
 
 	// Create a folder with the artist name
 	artistFolder := filepath.Join(downloadPath, track.ART_NAME)
-	
+
 	// Custom filename for the track: Artist - Title
 	customFilename := fmt.Sprintf("%s - %s", track.ART_NAME, track.SNG_TITLE)
 
+	// Create progress manager for single track
+	pm := ui.NewProgressManager()
+	defer pm.Wait()
+
+	bar := pm.AddDownloadBar(customFilename, 0)
+
 	// Download the track
-	return downloadTrackImproved(track, artistFolder, quality, customFilename)
+	return downloadTrackImproved(track, artistFolder, quality, customFilename, bar)
 }
 
 // handleSpotifyAlbumImproved handles downloading a Spotify album with improved UI
@@ -554,7 +567,8 @@ func downloadSpotifyTracksIndividuallyImproved(tracks []models.Track, downloadPa
 }
 
 // downloadTrackImproved downloads a single track from Deezer with improved UI
-func downloadTrackImproved(track types.TrackType, downloadPath string, quality int, customFilename string) error {
+// If bar is nil, the download will proceed without a progress bar
+func downloadTrackImproved(track types.TrackType, downloadPath string, quality int, customFilename string, bar *mpb.Bar) error {
 	// Determine cover size based on quality
 	coverSize := 500
 	if quality == 9 {
@@ -572,23 +586,21 @@ func downloadTrackImproved(track types.TrackType, downloadPath string, quality i
 		ext = "flac"
 	}
 	fullPath := filepath.Join(downloadPath, fmt.Sprintf("%s.%s", utils.SanitizeFileName(customFilename), ext))
-	
+
 	if _, err := os.Stat(fullPath); err == nil {
-		// Clear the current line and show file exists message with newline
-		fmt.Printf("\r\033[K")
-		ui.Dim("✓ File already exists: %s", filepath.Base(fullPath))
-		fmt.Println() // Add newline to move to next line
+		// File exists - complete the bar and return
+		if bar != nil {
+			ui.CompleteBar(bar)
+		}
 		return nil
 	}
 
-	// Create a custom progress callback
-	var progressBar *ui.SimpleProgress
-	progressCallback := func(progress float64, downloaded, total int64) {
-		if progressBar == nil && total > 0 {
-			progressBar = ui.NewSimpleProgress(customFilename, total)
-		}
-		if progressBar != nil && total > 0 {
-			progressBar.Update(downloaded)
+	// Create a custom progress callback using mpb bar
+	var progressCallback func(progress float64, downloaded, total int64)
+	if bar != nil {
+		callback := ui.CreateBarCallback(bar)
+		progressCallback = func(_ float64, downloaded, total int64) {
+			callback(downloaded, total)
 		}
 	}
 
@@ -605,14 +617,14 @@ func downloadTrackImproved(track types.TrackType, downloadPath string, quality i
 	// Execute download
 	_, err := download.DownloadTrack(options)
 	if err != nil {
-		if progressBar != nil {
-			progressBar.Clear()
+		if bar != nil {
+			ui.AbortBar(bar)
 		}
 		return err
 	}
 
-	if progressBar != nil {
-		progressBar.Finish()
+	if bar != nil {
+		ui.CompleteBar(bar)
 	}
 
 	return nil
@@ -624,40 +636,39 @@ func downloadTracksConcurrently(tracks []types.TrackType, downloadPath string, q
 	if total == 0 {
 		return 0, 0
 	}
-	
+
+	// Create progress manager
+	pm := ui.NewProgressManager()
+	defer pm.Wait()
+
+	// Create a map to store bars for each track
+	type workItem struct {
+		track types.TrackType
+		bar   *mpb.Bar
+	}
+
 	// Channel for work items
-	workChan := make(chan types.TrackType, total)
+	workChan := make(chan workItem, total)
 	resultChan := make(chan bool, total)
-	
+
 	// Create wait group
 	var wg sync.WaitGroup
-	
-	// Mutex for thread-safe console output
-	var outputMux sync.Mutex
-	downloadCount := 0
-	
+
 	// Start worker goroutines
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
-			
-			for track := range workChan {
+
+			for item := range workChan {
+				track := item.track
+				bar := item.bar
+
 				// Custom filename for the track: Artist - Title
 				customFilename := fmt.Sprintf("%s - %s", track.ART_NAME, track.SNG_TITLE)
-				
-				// Update status
-				outputMux.Lock()
-				downloadCount++
-				fmt.Printf("\r\033[K%s [%d/%d] Downloading: %s", ui.IconInfo, downloadCount, total, customFilename)
-				outputMux.Unlock()
-				
-				err := downloadTrackImproved(track, downloadPath, quality, customFilename)
+
+				err := downloadTrackImproved(track, downloadPath, quality, customFilename, bar)
 				if err != nil {
-					outputMux.Lock()
-					fmt.Printf("\r\033[K")
-					ui.ErrorWithIcon("[%d/%d] Failed: %s - %v", downloadCount, total, customFilename, err)
-					outputMux.Unlock()
 					resultChan <- false
 				} else {
 					resultChan <- true
@@ -665,17 +676,19 @@ func downloadTracksConcurrently(tracks []types.TrackType, downloadPath string, q
 			}
 		}(i)
 	}
-	
-	// Send work to workers
+
+	// Create bars and send work to workers
 	for _, track := range tracks {
-		workChan <- track
+		customFilename := fmt.Sprintf("%s - %s", track.ART_NAME, track.SNG_TITLE)
+		bar := pm.AddDownloadBar(customFilename, 0) // Total will be set when download starts
+		workChan <- workItem{track: track, bar: bar}
 	}
 	close(workChan)
-	
+
 	// Wait for all workers to finish
 	wg.Wait()
 	close(resultChan)
-	
+
 	// Count results
 	for success := range resultChan {
 		if success {
@@ -684,10 +697,7 @@ func downloadTracksConcurrently(tracks []types.TrackType, downloadPath string, q
 			failed++
 		}
 	}
-	
-	// Clear the progress line
-	fmt.Printf("\r\033[K")
-	
+
 	return succeeded, failed
 }
 
@@ -697,63 +707,58 @@ func downloadSpotifyTracksConcurrently(tracks []models.Track, downloadPath strin
 	if total == 0 {
 		return 0, 0
 	}
-	
+
+	// Create progress manager
+	pm := ui.NewProgressManager()
+	defer pm.Wait()
+
+	// Create a type for work items
+	type workItem struct {
+		track models.Track
+		bar   *mpb.Bar
+	}
+
 	// Channel for work items
-	workChan := make(chan models.Track, total)
+	workChan := make(chan workItem, total)
 	resultChan := make(chan bool, total)
-	
+
 	// Create wait group
 	var wg sync.WaitGroup
-	
-	// Mutex for thread-safe console output
+
+	// Mutex for thread-safe error output
 	var outputMux sync.Mutex
-	searchCount := 0
-	downloadCount := 0
-	
+
 	// Start worker goroutines
 	for i := 0; i < concurrency; i++ {
 		wg.Add(1)
 		go func(workerID int) {
 			defer wg.Done()
-			
-			for track := range workChan {
+
+			for item := range workChan {
+				track := item.track
+				bar := item.bar
 				trackName := fmt.Sprintf("%s by %s", track.Title, joinArtistNames(track.Artists))
-				
-				// Update search status
-				outputMux.Lock()
-				searchCount++
-				fmt.Printf("\r\033[K%s [%d/%d] Searching for: %s", ui.IconInfo, searchCount, total, trackName)
-				outputMux.Unlock()
-				
+
 				// Add a small delay to avoid overwhelming the Deezer API
-				if searchCount > 1 && searchCount%3 == 0 {
-					time.Sleep(1 * time.Second)
-				}
-				
+				time.Sleep(300 * time.Millisecond)
+
 				deezerTrack, err := api.SearchTrackOnDeezer(&track)
 				if err != nil {
 					outputMux.Lock()
-					fmt.Printf("\r\033[K")
-					ui.ErrorWithIcon("[%d/%d] Not found on Deezer: %s - %v", searchCount, total, trackName, err)
+					ui.ErrorWithIcon("Not found on Deezer: %s", trackName)
 					outputMux.Unlock()
+					ui.AbortBar(bar)
 					resultChan <- false
 					continue
 				}
-				
+
 				// Custom filename for the track: Artist - Title
 				customFilename := fmt.Sprintf("%s - %s", deezerTrack.ART_NAME, deezerTrack.SNG_TITLE)
-				
-				// Update download status
-				outputMux.Lock()
-				downloadCount++
-				fmt.Printf("\r\033[K%s [%d/%d] Downloading: %s", ui.IconInfo, downloadCount, total, customFilename)
-				outputMux.Unlock()
-				
-				err = downloadTrackImproved(deezerTrack, downloadPath, quality, customFilename)
+
+				err = downloadTrackImproved(deezerTrack, downloadPath, quality, customFilename, bar)
 				if err != nil {
 					outputMux.Lock()
-					fmt.Printf("\r\033[K")
-					ui.ErrorWithIcon("[%d/%d] Download failed: %s - %v", downloadCount, total, customFilename, err)
+					ui.ErrorWithIcon("Download failed: %s - %v", customFilename, err)
 					outputMux.Unlock()
 					resultChan <- false
 				} else {
@@ -762,17 +767,19 @@ func downloadSpotifyTracksConcurrently(tracks []models.Track, downloadPath strin
 			}
 		}(i)
 	}
-	
-	// Send work to workers
+
+	// Create bars and send work to workers
 	for _, track := range tracks {
-		workChan <- track
+		trackName := fmt.Sprintf("%s by %s", track.Title, joinArtistNames(track.Artists))
+		bar := pm.AddDownloadBar(trackName, 0) // Total will be set when download starts
+		workChan <- workItem{track: track, bar: bar}
 	}
 	close(workChan)
-	
+
 	// Wait for all workers to finish
 	wg.Wait()
 	close(resultChan)
-	
+
 	// Count results
 	for success := range resultChan {
 		if success {
@@ -781,9 +788,6 @@ func downloadSpotifyTracksConcurrently(tracks []models.Track, downloadPath strin
 			failed++
 		}
 	}
-	
-	// Clear the progress line
-	fmt.Printf("\r\033[K")
-	
+
 	return succeeded, failed
 }
