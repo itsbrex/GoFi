@@ -641,14 +641,8 @@ func downloadTracksConcurrently(tracks []types.TrackType, downloadPath string, q
 	pm := ui.NewProgressManager()
 	defer pm.Wait()
 
-	// Create a map to store bars for each track
-	type workItem struct {
-		track types.TrackType
-		bar   *mpb.Bar
-	}
-
-	// Channel for work items
-	workChan := make(chan workItem, total)
+	// Channel for work items (just tracks, not bars)
+	workChan := make(chan types.TrackType, total)
 	resultChan := make(chan bool, total)
 
 	// Create wait group
@@ -660,12 +654,12 @@ func downloadTracksConcurrently(tracks []types.TrackType, downloadPath string, q
 		go func(workerID int) {
 			defer wg.Done()
 
-			for item := range workChan {
-				track := item.track
-				bar := item.bar
-
+			for track := range workChan {
 				// Custom filename for the track: Artist - Title
 				customFilename := fmt.Sprintf("%s - %s", track.ART_NAME, track.SNG_TITLE)
+
+				// Create progress bar for THIS track when worker starts
+				bar := pm.AddDownloadBar(customFilename, 0)
 
 				err := downloadTrackImproved(track, downloadPath, quality, customFilename, bar)
 				if err != nil {
@@ -677,11 +671,9 @@ func downloadTracksConcurrently(tracks []types.TrackType, downloadPath string, q
 		}(i)
 	}
 
-	// Create bars and send work to workers
+	// Send work to workers (no bars yet)
 	for _, track := range tracks {
-		customFilename := fmt.Sprintf("%s - %s", track.ART_NAME, track.SNG_TITLE)
-		bar := pm.AddDownloadBar(customFilename, 0) // Total will be set when download starts
-		workChan <- workItem{track: track, bar: bar}
+		workChan <- track
 	}
 	close(workChan)
 
@@ -712,14 +704,8 @@ func downloadSpotifyTracksConcurrently(tracks []models.Track, downloadPath strin
 	pm := ui.NewProgressManager()
 	defer pm.Wait()
 
-	// Create a type for work items
-	type workItem struct {
-		track models.Track
-		bar   *mpb.Bar
-	}
-
-	// Channel for work items
-	workChan := make(chan workItem, total)
+	// Channel for work items (just tracks, not bars)
+	workChan := make(chan models.Track, total)
 	resultChan := make(chan bool, total)
 
 	// Create wait group
@@ -734,10 +720,11 @@ func downloadSpotifyTracksConcurrently(tracks []models.Track, downloadPath strin
 		go func(workerID int) {
 			defer wg.Done()
 
-			for item := range workChan {
-				track := item.track
-				bar := item.bar
+			for track := range workChan {
 				trackName := fmt.Sprintf("%s by %s", track.Title, joinArtistNames(track.Artists))
+
+				// Create progress bar for THIS track when worker starts
+				bar := pm.AddDownloadBar(trackName, 0)
 
 				// Add a small delay to avoid overwhelming the Deezer API
 				time.Sleep(300 * time.Millisecond)
@@ -768,11 +755,9 @@ func downloadSpotifyTracksConcurrently(tracks []models.Track, downloadPath strin
 		}(i)
 	}
 
-	// Create bars and send work to workers
+	// Send work to workers (no bars yet)
 	for _, track := range tracks {
-		trackName := fmt.Sprintf("%s by %s", track.Title, joinArtistNames(track.Artists))
-		bar := pm.AddDownloadBar(trackName, 0) // Total will be set when download starts
-		workChan <- workItem{track: track, bar: bar}
+		workChan <- track
 	}
 	close(workChan)
 
