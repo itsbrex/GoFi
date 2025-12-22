@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/d-fi/GoFi/logger"
@@ -16,6 +17,7 @@ var (
 	sessionID     string
 	refreshTicker *time.Ticker
 	userArl       string
+	mu            sync.Mutex // Mutex to protect concurrent access to shared variables
 )
 
 func init() {
@@ -55,6 +57,9 @@ func init() {
 
 // InitDeezerAPI initializes the Deezer API and sets up a session refresh ticker
 func InitDeezerAPI(arl string) (string, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
 	userArl = arl
 	logger.Debug("Initializing Deezer API with ARL length: %d", len(arl))
 
@@ -130,6 +135,9 @@ func IsInitialized() bool {
 
 // refreshSession refreshes the Deezer session using the ARL
 func refreshSession() (string, error) {
+	mu.Lock()
+	defer mu.Unlock()
+
 	logger.Debug("Refreshing Deezer session with ARL")
 
 	resp, err := Client.R().
