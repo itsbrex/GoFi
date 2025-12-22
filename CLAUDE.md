@@ -125,9 +125,13 @@ gofi --version
 
 6. **User Interface**: Beautiful terminal output
    - Display manager: `internal/ui/display.go`
-   - Custom progress bars: `internal/ui/simple_progress.go`
+   - Multi-progress bar manager: `internal/ui/progress_manager.go` (wraps `mpb`)
+   - Uses `github.com/vbauerster/mpb/v8` for clean concurrent progress display
+   - Legacy progress: `internal/ui/simple_progress.go` (deprecated, kept for reference)
    - Color-coded output using `github.com/fatih/color`
    - Icons and visual feedback for better UX
+   - Progress bars update at 10 FPS (100ms interval) for smooth rendering
+   - Each concurrent download gets its own fixed progress bar line (no overlapping output)
 
 ### Data Flow
 
@@ -258,6 +262,15 @@ Current test coverage focuses on:
    - Mutex protection for Deezer API initialization
    - Safe concurrent access to shared session variables
    - Prevents race conditions during parallel downloads
+
+8. **Professional Progress Display** (mpb integration):
+   - Multi-progress bar support using `github.com/vbauerster/mpb/v8`
+   - Each concurrent download has its own fixed line (no overlapping output)
+   - Progress bars show: percentage, size (current/total), download speed, and ETA
+   - Updates at 10 FPS (100ms interval) for smooth rendering
+   - Automatically cleans up completed bars
+   - Graceful handling of file-already-exists scenarios
+   - Thread-safe progress updates across concurrent workers
 
 ## Development Tips
 
