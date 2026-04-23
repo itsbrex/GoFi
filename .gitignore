@@ -33,6 +33,7 @@ build/
 go.work
 d-fi-core.txt
 **/.claude/settings.local.json
+.specstory/
 
 .env
 
