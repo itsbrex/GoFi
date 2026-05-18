@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file is the canonical guide for AI coding agents (Claude Code, Codex, Cursor, etc.) working in this repository. `CLAUDE.md` is a one-line shim (`@AGENTS.md`) that exists only so Claude Code's auto-discovery still finds this content — edit `AGENTS.md`, not the shim.
 
 ## Project Overview
 
