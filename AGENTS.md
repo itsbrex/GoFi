@@ -170,10 +170,15 @@ Authentication:
 - `DEEZER_ARL`: Deezer authentication token (optional - can be auto-detected)
 
 Configuration (Priority: CLI flags > Environment variables > Default values):
-- `GOFI_OUTPUT_DIR`: Default download directory (default: "./downloads")
-- `GOFI_QUALITY`: Default audio quality - 1, 3, or 9 (default: 3)
+- `GOFI_OUTPUT_DIR`: Default download directory fallback (default: "./downloads")
+- `GOFI_TRACK_OUTPUT_DIR`: Default output directory for track URLs
+- `GOFI_ALBUM_OUTPUT_DIR`: Default output directory for album URLs
+- `GOFI_PLAYLIST_OUTPUT_DIR`: Default output directory for playlist URLs
+- `GOFI_QUALITY`: Default audio quality - 1, 3, or 9 (default: 9)
 - `GOFI_CONCURRENCY`: Max concurrent downloads - 1 to 10 (default: 5)
 - `GOFI_LOG_LEVEL`: Default log level - debug, info, warn, error (default: "info")
+- `GOFI_SYMLINK_EXISTING_TRACKS`: Enable recursive duplicate lookup and symlink instead of re-download (`1`/`true` to enable)
+- `GOFI_SYMLINK_SEARCH_DIRS`: Optional extra duplicate-search roots, separated by comma, colon, or new line
 
 ## Important File Paths
 

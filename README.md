@@ -175,11 +175,20 @@ GoFi supports the following environment variables to set default values:
 # Set default output directory
 export GOFI_OUTPUT_DIR="$HOME/Music/Downloads"
 
+# Set content-specific default output directories
+export GOFI_TRACK_OUTPUT_DIR="$HOME/Music/Downloads/Tracks"
+export GOFI_ALBUM_OUTPUT_DIR="$HOME/Music/Downloads/Albums"
+export GOFI_PLAYLIST_OUTPUT_DIR="$HOME/Music/Downloads/Playlists"
+
 # Set default quality (1=128kbps MP3, 3=320kbps MP3, 9=FLAC)
 export GOFI_QUALITY=9
 
 # Set maximum concurrent downloads (1-10)
 export GOFI_CONCURRENCY=5
+
+# Symlink matching tracks from configured output folders instead of re-downloading
+export GOFI_SYMLINK_EXISTING_TRACKS=1
+export GOFI_SYMLINK_SEARCH_DIRS="$HOME/Music/Archive"
 
 # Set default log level (debug, info, warn, error)
 export GOFI_LOG_LEVEL=info
@@ -189,11 +198,18 @@ These can also be added to your `.env` file:
 
 ```
 GOFI_OUTPUT_DIR=/path/to/music
+GOFI_TRACK_OUTPUT_DIR=/path/to/music/Tracks
+GOFI_ALBUM_OUTPUT_DIR=/path/to/music/Albums
+GOFI_PLAYLIST_OUTPUT_DIR=/path/to/music/Playlists
 GOFI_QUALITY=9
+GOFI_SYMLINK_EXISTING_TRACKS=1
+GOFI_SYMLINK_SEARCH_DIRS=/path/to/archive
 GOFI_LOG_LEVEL=info
 ```
 
-**Note**: Command-line flags always take precedence over environment variables.
+When `GOFI_TRACK_OUTPUT_DIR`, `GOFI_ALBUM_OUTPUT_DIR`, or `GOFI_PLAYLIST_OUTPUT_DIR` is set, GoFi uses the matching directory for that content type. `-o/--output` always overrides content-specific defaults.
+
+When `GOFI_SYMLINK_EXISTING_TRACKS` is enabled, GoFi recursively searches the active output folder, the configured track/album/playlist output folders, `GOFI_OUTPUT_DIR`, and any `GOFI_SYMLINK_SEARCH_DIRS` roots for a matching track filename. If a match is found, GoFi skips the download and creates a symlink in the requested destination.
 
 Alternatively, you can set these as environment variables:
 
