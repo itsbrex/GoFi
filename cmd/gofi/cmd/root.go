@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -13,11 +12,16 @@ import (
 )
 
 var (
-	downloadPath string
-	quality      int
-	concurrency  int
-	logLevel     string
-	version      = "dev" // Set by build flags
+	downloadPath       string
+	trackOutputPath    string
+	albumOutputPath    string
+	playlistOutputPath string
+	symlinkExisting    bool
+	symlinkSearchDirs  []string
+	quality            int
+	concurrency        int
+	logLevel           string
+	version            = "dev" // Set by build flags
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -31,30 +35,12 @@ tracks on Deezer using Spotify URLs.
 You can download tracks, albums, and playlists in different qualities.`,
 	Version: version,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		// Set up logging
 		level, err := zerolog.ParseLevel(logLevel)
 		if err != nil {
 			ui.Warning("Invalid log level '%s', defaulting to 'info'", logLevel)
 			level = zerolog.InfoLevel
 		}
 		logger.SetLogLevel(level)
-		
-		// Ensure download path exists
-		if downloadPath != "" {
-			err := os.MkdirAll(downloadPath, 0755)
-			if err != nil {
-				ui.ErrorWithIcon("Error creating download directory: %v", err)
-				os.Exit(1)
-			}
-			
-			// Convert to absolute path
-			absPath, err := filepath.Abs(downloadPath)
-			if err != nil {
-				ui.ErrorWithIcon("Error resolving download path: %v", err)
-				os.Exit(1)
-			}
-			downloadPath = absPath
-		}
 	},
 }
 
@@ -70,31 +56,41 @@ func Execute() {
 func init() {
 	// Load environment variables from .env file if it exists
 	loadEnvFile()
-	
+
 	// Check for GOFI_* environment variables and set defaults
 	defaultOutput := getEnvOrDefault("GOFI_OUTPUT_DIR", "./downloads")
+	defaultTrackOutput := os.Getenv("GOFI_TRACK_OUTPUT_DIR")
+	defaultAlbumOutput := os.Getenv("GOFI_ALBUM_OUTPUT_DIR")
+	defaultPlaylistOutput := os.Getenv("GOFI_PLAYLIST_OUTPUT_DIR")
+	defaultSymlinkExisting := getEnvBoolOrDefault("GOFI_SYMLINK_EXISTING_TRACKS", false)
+	defaultSymlinkSearchDirs := splitPathList(os.Getenv("GOFI_SYMLINK_SEARCH_DIRS"))
 	defaultQuality := getEnvIntOrDefault("GOFI_QUALITY", 9)
 	defaultConcurrency := getEnvIntOrDefault("GOFI_CONCURRENCY", 5)
 	defaultLogLevel := getEnvOrDefault("GOFI_LOG_LEVEL", "info")
-	
+
 	// Validate quality value from environment
 	if defaultQuality != 1 && defaultQuality != 3 && defaultQuality != 9 {
 		ui.Warning("Invalid GOFI_QUALITY value '%d'. Must be 1, 3, or 9. Using default: 9", defaultQuality)
 		defaultQuality = 9
 	}
-	
+
 	// Validate concurrency value from environment
 	if defaultConcurrency < 1 || defaultConcurrency > 10 {
 		ui.Warning("Invalid GOFI_CONCURRENCY value '%d'. Must be between 1 and 10. Using default: 5", defaultConcurrency)
 		defaultConcurrency = 5
 	}
-	
+
 	// Persistent flags that are global across all commands
 	rootCmd.PersistentFlags().StringVarP(&downloadPath, "output", "o", defaultOutput, "Directory to save downloaded files (env: GOFI_OUTPUT_DIR)")
 	rootCmd.PersistentFlags().IntVarP(&quality, "quality", "q", defaultQuality, "Audio quality - 1=128kbps MP3, 3=320kbps MP3, 9=FLAC (env: GOFI_QUALITY)")
 	rootCmd.PersistentFlags().IntVarP(&concurrency, "concurrency", "c", defaultConcurrency, "Max concurrent downloads (1-10) (env: GOFI_CONCURRENCY)")
 	rootCmd.PersistentFlags().StringVarP(&logLevel, "log-level", "l", defaultLogLevel, "Log level - debug, info, warn, error (env: GOFI_LOG_LEVEL)")
-	
+	rootCmd.PersistentFlags().StringVar(&trackOutputPath, "track-output", defaultTrackOutput, "Default output directory for track downloads (env: GOFI_TRACK_OUTPUT_DIR)")
+	rootCmd.PersistentFlags().StringVar(&albumOutputPath, "album-output", defaultAlbumOutput, "Default output directory for album downloads (env: GOFI_ALBUM_OUTPUT_DIR)")
+	rootCmd.PersistentFlags().StringVar(&playlistOutputPath, "playlist-output", defaultPlaylistOutput, "Default output directory for playlist downloads (env: GOFI_PLAYLIST_OUTPUT_DIR)")
+	rootCmd.PersistentFlags().BoolVar(&symlinkExisting, "symlink-existing", defaultSymlinkExisting, "Symlink matching tracks from output folders instead of re-downloading (env: GOFI_SYMLINK_EXISTING_TRACKS)")
+	rootCmd.PersistentFlags().StringSliceVar(&symlinkSearchDirs, "symlink-search-dir", defaultSymlinkSearchDirs, "Additional recursive directory to search for existing tracks; repeat or comma-separate (env: GOFI_SYMLINK_SEARCH_DIRS)")
+
 	// Add subcommands
 	rootCmd.AddCommand(authCmd)
 	rootCmd.AddCommand(downloadCmd)
@@ -130,12 +126,12 @@ func loadEnvFile() {
 
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
-		
+
 		// Remove quotes if present
 		if len(value) > 1 && (value[0] == '"' || value[0] == '\'') && value[0] == value[len(value)-1] {
 			value = value[1 : len(value)-1]
 		}
-		
+
 		// Set environment variable
 		os.Setenv(key, value)
 		logger.Debug("Set environment variable: %s", key)
@@ -159,4 +155,34 @@ func getEnvIntOrDefault(key string, defaultValue int) int {
 		ui.Warning("Invalid integer value '%s' for %s", value, key)
 	}
 	return defaultValue
+}
+
+func getEnvBoolOrDefault(key string, defaultValue bool) bool {
+	value := strings.TrimSpace(strings.ToLower(os.Getenv(key)))
+	if value == "" {
+		return defaultValue
+	}
+	switch value {
+	case "1", "true", "yes", "y", "on", "enabled":
+		return true
+	case "0", "false", "no", "n", "off", "disabled":
+		return false
+	default:
+		ui.Warning("Invalid boolean value '%s' for %s", os.Getenv(key), key)
+		return defaultValue
+	}
+}
+
+func splitPathList(value string) []string {
+	fields := strings.FieldsFunc(value, func(r rune) bool {
+		return r == ',' || r == '\n' || r == ':'
+	})
+	paths := make([]string, 0, len(fields))
+	for _, field := range fields {
+		field = strings.TrimSpace(field)
+		if field != "" {
+			paths = append(paths, field)
+		}
+	}
+	return paths
 }

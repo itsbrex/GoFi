@@ -17,19 +17,27 @@ import (
 	internalutils "github.com/d-fi/GoFi/internal/utils"
 	"github.com/d-fi/GoFi/types"
 	"github.com/d-fi/GoFi/utils"
+	"github.com/spf13/cobra"
 	"github.com/vbauerster/mpb/v8"
 )
 
 // downloadHandlerImproved processes downloads with improved UI
-func downloadHandlerImproved(url string, downloadPath string, quality int, concurrency int) error {
+func downloadHandlerImproved(cmd *cobra.Command, url string, downloadPath string, quality int, concurrency int) error {
 	ctx := context.Background()
-	
+
 	// Parse the URL to identify its type
 	parsedInfo, err := internalutils.ParseMusicURL(url)
 	if err != nil {
 		ui.ErrorWithIcon("Failed to parse URL: %v", err)
 		return err
 	}
+
+	downloadPath, err = resolveDownloadPath(cmd, parsedInfo.Type, downloadPath)
+	if err != nil {
+		ui.ErrorWithIcon("%v", err)
+		return err
+	}
+	printResolvedDownloadPath(downloadPath)
 
 	// Handle Spotify URLs
 	if parsedInfo.Source == "spotify" {
@@ -66,13 +74,13 @@ func handleSpotifyDownloadImproved(ctx context.Context, parsedInfo *internalutil
 	switch parsedInfo.Type {
 	case internalutils.SpotifyTrack:
 		return handleSpotifyTrackImproved(ctx, spotifyService, parsedInfo.ID, downloadPath, quality)
-	
+
 	case internalutils.SpotifyAlbum:
 		return handleSpotifyAlbumImproved(ctx, spotifyService, parsedInfo.ID, downloadPath, quality, concurrency)
-	
+
 	case internalutils.SpotifyPlaylist:
 		return handleSpotifyPlaylistImproved(ctx, spotifyService, parsedInfo.ID, downloadPath, quality, concurrency)
-	
+
 	default:
 		ui.ErrorWithIcon("Unsupported Spotify content type: %s", parsedInfo.Type)
 		return fmt.Errorf("unsupported Spotify content type: %s", parsedInfo.Type)
@@ -85,13 +93,13 @@ func handleDeezerDownloadImproved(ctx context.Context, parsedInfo *internalutils
 	switch parsedInfo.Type {
 	case internalutils.DeezerTrack:
 		return handleDeezerTrackImproved(parsedInfo.ID, downloadPath, quality)
-	
+
 	case internalutils.DeezerAlbum:
 		return handleDeezerAlbumImproved(parsedInfo.ID, downloadPath, quality, concurrency)
-	
+
 	case internalutils.DeezerPlaylist:
 		return handleDeezerPlaylistImproved(parsedInfo.ID, downloadPath, quality, concurrency)
-	
+
 	default:
 		ui.ErrorWithIcon("Unsupported Deezer content type: %s", parsedInfo.Type)
 		return fmt.Errorf("unsupported Deezer content type: %s", parsedInfo.Type)
@@ -102,7 +110,7 @@ func handleDeezerDownloadImproved(ctx context.Context, parsedInfo *internalutils
 func handleSpotifyTrackImproved(ctx context.Context, spotifyService *spotify.SpotifyService, id string, downloadPath string, quality int) error {
 	ui.Header("═══ ♫ Spotify Track Download ═══")
 	fmt.Println()
-	
+
 	// Fetch track from Spotify
 	fmt.Print(ui.InfoString("🔍 Searching Spotify for track info... "))
 	track, err := spotifyService.FetchTrack(ctx, id)
@@ -160,7 +168,7 @@ func handleSpotifyTrackImproved(ctx context.Context, spotifyService *spotify.Spo
 func handleDeezerTrackImproved(id string, downloadPath string, quality int) error {
 	ui.Header("═══ ♫ Deezer Track Download ═══")
 	fmt.Println()
-	
+
 	fmt.Print(ui.InfoString("🔍 Searching Deezer for track info... "))
 	track, err := api.GetTrackInfo(id)
 	if err != nil {
@@ -208,7 +216,7 @@ func handleDeezerTrackImproved(id string, downloadPath string, quality int) erro
 func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.SpotifyService, id string, downloadPath string, quality int, concurrency int) error {
 	ui.Header("═══ ♫ Spotify Album Download ═══")
 	fmt.Println()
-	
+
 	fmt.Print(ui.InfoString("🔍 Searching Spotify for album info... "))
 	album, tracks, err := spotifyService.FetchAlbum(ctx, id)
 	if err != nil {
@@ -258,7 +266,7 @@ func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.Spo
 
 	// Download the tracks
 	total := len(albumTracks.Data)
-	
+
 	ui.InfoWithIcon("Starting download of %d tracks with %d concurrent downloads...", total, concurrency)
 	fmt.Println()
 
@@ -272,14 +280,14 @@ func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.Spo
 		}
 		trackList = append(trackList, trackInfo)
 	}
-	
+
 	succeeded, failed := downloadTracksConcurrently(trackList, albumPath, quality, concurrency)
 
 	fmt.Println()
 	fmt.Println(strings.Repeat("─", 50))
 	ui.InfoBold("Download Summary")
 	fmt.Println(strings.Repeat("─", 50))
-	
+
 	if succeeded > 0 {
 		ui.SuccessWithIcon("Succeeded: %d", succeeded)
 	}
@@ -287,7 +295,7 @@ func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.Spo
 		ui.ErrorWithIcon("Failed:    %d", failed)
 	}
 	fmt.Printf("  Total:     %d\n", total)
-	
+
 	if failed == 0 {
 		fmt.Println()
 		ui.SuccessWithIcon("All downloads completed successfully!")
@@ -299,7 +307,7 @@ func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.Spo
 		ui.WarningWithIcon("Some downloads failed. Check the errors above.")
 	}
 	fmt.Println(strings.Repeat("─", 50))
-	
+
 	if failed > 0 {
 		return fmt.Errorf("some tracks failed to download")
 	}
@@ -310,7 +318,7 @@ func handleSpotifyAlbumImproved(ctx context.Context, spotifyService *spotify.Spo
 func handleDeezerAlbumImproved(id string, downloadPath string, quality int, concurrency int) error {
 	ui.Header("═══ ♫ Deezer Album Download ═══")
 	fmt.Println()
-	
+
 	fmt.Print(ui.InfoString("🔍 Searching Deezer for album info... "))
 	album, err := api.GetAlbumInfo(id)
 	if err != nil {
@@ -349,7 +357,7 @@ func handleDeezerAlbumImproved(id string, downloadPath string, quality int, conc
 
 	// Download the tracks
 	total := len(albumTracks.Data)
-	
+
 	ui.InfoWithIcon("Starting download of %d tracks with %d concurrent downloads...", total, concurrency)
 	fmt.Println()
 
@@ -363,14 +371,14 @@ func handleDeezerAlbumImproved(id string, downloadPath string, quality int, conc
 		}
 		trackList = append(trackList, trackInfo)
 	}
-	
+
 	succeeded, failed := downloadTracksConcurrently(trackList, albumPath, quality, concurrency)
 
 	fmt.Println()
 	fmt.Println(strings.Repeat("─", 50))
 	ui.InfoBold("Download Summary")
 	fmt.Println(strings.Repeat("─", 50))
-	
+
 	if succeeded > 0 {
 		ui.SuccessWithIcon("Succeeded: %d", succeeded)
 	}
@@ -378,7 +386,7 @@ func handleDeezerAlbumImproved(id string, downloadPath string, quality int, conc
 		ui.ErrorWithIcon("Failed:    %d", failed)
 	}
 	fmt.Printf("  Total:     %d\n", total)
-	
+
 	if failed == 0 {
 		fmt.Println()
 		ui.SuccessWithIcon("All downloads completed successfully!")
@@ -390,7 +398,7 @@ func handleDeezerAlbumImproved(id string, downloadPath string, quality int, conc
 		ui.WarningWithIcon("Some downloads failed. Check the errors above.")
 	}
 	fmt.Println(strings.Repeat("─", 50))
-	
+
 	if failed > 0 {
 		return fmt.Errorf("some tracks failed to download")
 	}
@@ -401,7 +409,7 @@ func handleDeezerAlbumImproved(id string, downloadPath string, quality int, conc
 func handleSpotifyPlaylistImproved(ctx context.Context, spotifyService *spotify.SpotifyService, id string, downloadPath string, quality int, concurrency int) error {
 	ui.Header("═══ ♫ Spotify Playlist Download ═══")
 	fmt.Println()
-	
+
 	fmt.Print(ui.InfoString("🔍 Searching Spotify for playlist info... "))
 	playlist, tracks, err := spotifyService.FetchPlaylist(ctx, id)
 	if err != nil {
@@ -440,7 +448,7 @@ func handleSpotifyPlaylistImproved(ctx context.Context, spotifyService *spotify.
 func handleDeezerPlaylistImproved(id string, downloadPath string, quality int, concurrency int) error {
 	ui.Header("═══ ♫ Deezer Playlist Download ═══")
 	fmt.Println()
-	
+
 	fmt.Print(ui.InfoString("🔍 Searching Deezer for playlist info... "))
 	playlist, err := api.GetPlaylistInfo(id)
 	if err != nil {
@@ -478,7 +486,7 @@ func handleDeezerPlaylistImproved(id string, downloadPath string, quality int, c
 
 	// Download the tracks
 	total := len(tracks.Data)
-	
+
 	ui.InfoWithIcon("Starting download of %d tracks with %d concurrent downloads...", total, concurrency)
 	fmt.Println()
 
@@ -492,14 +500,14 @@ func handleDeezerPlaylistImproved(id string, downloadPath string, quality int, c
 		}
 		trackList = append(trackList, trackInfo)
 	}
-	
+
 	succeeded, failed := downloadTracksConcurrently(trackList, playlistPath, quality, concurrency)
 
 	fmt.Println()
 	fmt.Println(strings.Repeat("─", 50))
 	ui.InfoBold("Download Summary")
 	fmt.Println(strings.Repeat("─", 50))
-	
+
 	if succeeded > 0 {
 		ui.SuccessWithIcon("Succeeded: %d", succeeded)
 	}
@@ -507,7 +515,7 @@ func handleDeezerPlaylistImproved(id string, downloadPath string, quality int, c
 		ui.ErrorWithIcon("Failed:    %d", failed)
 	}
 	fmt.Printf("  Total:     %d\n", total)
-	
+
 	if failed == 0 {
 		fmt.Println()
 		ui.SuccessWithIcon("All downloads completed successfully!")
@@ -529,7 +537,7 @@ func handleDeezerPlaylistImproved(id string, downloadPath string, quality int, c
 // downloadSpotifyTracksIndividuallyImproved searches for and downloads each track individually with improved UI
 func downloadSpotifyTracksIndividuallyImproved(tracks []models.Track, downloadPath string, quality int, playlistName string, concurrency int) error {
 	total := len(tracks)
-	
+
 	ui.InfoWithIcon("Matching %d tracks from Spotify to Deezer with %d concurrent downloads...", total, concurrency)
 	fmt.Println()
 
@@ -539,7 +547,7 @@ func downloadSpotifyTracksIndividuallyImproved(tracks []models.Track, downloadPa
 	fmt.Println(strings.Repeat("─", 50))
 	ui.InfoBold("Download Summary")
 	fmt.Println(strings.Repeat("─", 50))
-	
+
 	if succeeded > 0 {
 		ui.SuccessWithIcon("Succeeded: %d", succeeded)
 	}
@@ -547,7 +555,7 @@ func downloadSpotifyTracksIndividuallyImproved(tracks []models.Track, downloadPa
 		ui.ErrorWithIcon("Failed:    %d", failed)
 	}
 	fmt.Printf("  Total:     %d\n", total)
-	
+
 	if failed == 0 {
 		fmt.Println()
 		ui.SuccessWithIcon("All downloads completed successfully!")
@@ -580,17 +588,21 @@ func downloadTrackImproved(track types.TrackType, downloadPath string, quality i
 		return fmt.Errorf("failed to create download directory: %v", err)
 	}
 
-	// Check if file already exists
-	ext := "mp3"
-	if quality == 9 {
-		ext = "flac"
+	match, linked, err := linkExistingTrackIfConfigured(downloadPath, customFilename, quality)
+	if err != nil {
+		if bar != nil {
+			ui.AbortBar(bar)
+		}
+		return err
 	}
-	fullPath := filepath.Join(downloadPath, fmt.Sprintf("%s.%s", utils.SanitizeFileName(customFilename), ext))
-
-	if _, err := os.Stat(fullPath); err == nil {
-		// File exists - complete the bar and return
+	if match != nil {
 		if bar != nil {
 			ui.CompleteBar(bar)
+		}
+		if linked {
+			ui.SuccessWithIcon("Found existing track, skipping download -> symlinking instead: %s -> %s", match.LinkPath, match.SourcePath)
+		} else {
+			ui.SuccessWithIcon("Track already exists, skipping download: %s", match.LinkPath)
 		}
 		return nil
 	}
@@ -615,7 +627,7 @@ func downloadTrackImproved(track types.TrackType, downloadPath string, quality i
 	}
 
 	// Execute download
-	_, err := download.DownloadTrack(options)
+	_, err = download.DownloadTrack(options)
 	if err != nil {
 		if bar != nil {
 			ui.AbortBar(bar)

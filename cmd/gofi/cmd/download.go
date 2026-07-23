@@ -26,9 +26,9 @@ Examples:
 	Args: cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		url := args[0]
-		
+
 		// Use the improved download handler with better UI
-		err := downloadHandlerImproved(url, downloadPath, quality, concurrency)
+		err := downloadHandlerImproved(cmd, url, downloadPath, quality, concurrency)
 		if err != nil {
 			// Error is already printed by the handler
 			os.Exit(1)
