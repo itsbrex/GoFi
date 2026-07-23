@@ -8,7 +8,7 @@
 *.so
 *.dylib
 d-fi
-gofi
+/gofi
 
 # Test binary, built with `go test -c`
 *.test

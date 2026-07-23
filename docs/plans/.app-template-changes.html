@@ -1,0 +1,1105 @@
+<!doctype html>
+<!-- __APP_TITLE__ — Changes Dashboard (reusable template: .app-template-changes.html)
+     Stamp with: bun run plans app <slug> --template changes
+     Single-file, offline. Design system = .app-template.html (Geist mono/sans w/
+     system fallback, monochrome base + 10 themes, ⌘K command bar, sortable table,
+     drawer, toasts, CSV, keyboard layer). Live feedback (approve/reject/edit +
+     Submit to Claude on 127.0.0.1:47613) ported from .plan-template.html.
+
+     ── HOW TO POPULATE (replace the SAMPLE DATA block below) ────────────────────
+     Run these in the repo, then hand the output to Claude to fill AUTHORS/COMMITS/
+     BRANCHES/REMOTE/WORKING/PLAN_ITEMS (shapes documented inline):
+       git fetch --all --prune
+       git log --all --no-merges --date=short \
+         --pretty=format:'@@@%H|%h|%an|%ae|%ad|%s' --numstat        # commits + files
+       git for-each-ref --format='%(refname:short) %(objectname:short)' refs/heads  # branches
+       for b in $(git for-each-ref --format='%(refname:short)' refs/heads); do \
+         echo "$b $(git rev-list --left-right --count main...$b)"; done             # divergence
+       git status --porcelain=v1                                    # working tree
+       git remote -v; git rev-list --left-right --count @{u}...HEAD 2>/dev/null      # remote sync
+     The dashboard renders out-of-the-box on the SAMPLE data until you swap it. -->
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>__APP_TITLE__ · Changes Dashboard</title>
+<meta name="theme-color" content="#000000"/>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%23000'/%3E%3Crect x='3' y='3' width='10' height='10' fill='%23fafafa'/%3E%3C/svg%3E"/>
+<style>
+:root{
+  color-scheme:dark;
+  --bg:#000;--bg-1:#0a0a0a;--bg-2:#0f0f0f;--bg-3:#141414;
+  --line:#1f1f1f;--line-2:#262626;--input:#404040;
+  --txt:#fafafa;--txt-2:#a3a3a3;--txt-3:#858585;
+  --accent:#fafafa;--accent-contrast:#0a0a0a;--accent-soft:rgba(250,250,250,.14);
+  --ok:oklch(.78 .14 150);--warn:oklch(.82 .13 85);--err:oklch(.68 .18 25);--info:oklch(.75 .11 240);
+  --add:oklch(.78 .14 150);--del:oklch(.68 .18 25);
+  --elev-1:rgba(255,255,255,.04);--elev-2:rgba(255,255,255,.09);
+  --btn-outline:rgba(255,255,255,.1);--backdrop:rgba(0,0,0,.55);
+  --shadow-pop:0 16px 36px rgba(0,0,0,.45);
+  --r:8px;--r-sm:6px;
+  --ease-out:cubic-bezier(.16,1,.3,1);
+  --z-drawer:40;--z-cmdbar:50;--z-modal:55;--z-toast:60;
+  --mono:'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:'Geist Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+}
+[data-theme=graphite]{--bg:oklch(.12 .008 250);--bg-1:oklch(.15 .01 250);--bg-2:oklch(.17 .01 250);--bg-3:oklch(.2 .012 250);--line:oklch(.24 .012 250);--line-2:oklch(.28 .014 250);--input:oklch(.44 .02 250);--txt:oklch(.97 .004 250);--txt-2:oklch(.73 .012 250);--txt-3:oklch(.62 .012 250);--accent:oklch(.8 .07 245);--accent-contrast:oklch(.14 .02 250);--accent-soft:oklch(.8 .07 245 / .15)}
+[data-theme=phosphor]{--bg:oklch(.11 .01 150);--bg-1:oklch(.14 .012 150);--bg-2:oklch(.16 .013 150);--bg-3:oklch(.19 .015 150);--line:oklch(.23 .015 150);--line-2:oklch(.27 .018 150);--input:oklch(.43 .03 150);--txt:oklch(.96 .01 150);--txt-2:oklch(.72 .03 150);--txt-3:oklch(.62 .03 150);--accent:oklch(.83 .19 148);--accent-contrast:oklch(.13 .04 150);--accent-soft:oklch(.83 .19 148 / .15)}
+[data-theme=amber]{--bg:oklch(.12 .008 65);--bg-1:oklch(.15 .009 65);--bg-2:oklch(.17 .01 65);--bg-3:oklch(.2 .011 65);--line:oklch(.24 .012 65);--line-2:oklch(.28 .014 65);--input:oklch(.44 .025 65);--txt:oklch(.97 .005 75);--txt-2:oklch(.74 .015 70);--txt-3:oklch(.62 .015 70);--accent:oklch(.8 .12 75);--accent-contrast:oklch(.16 .03 70);--accent-soft:oklch(.8 .12 75 / .15)}
+[data-theme=ember]{--bg:oklch(.11 .008 30);--bg-1:oklch(.14 .01 30);--bg-2:oklch(.16 .011 30);--bg-3:oklch(.19 .012 30);--line:oklch(.23 .013 30);--line-2:oklch(.27 .015 30);--input:oklch(.43 .03 30);--txt:oklch(.97 .005 30);--txt-2:oklch(.73 .015 30);--txt-3:oklch(.62 .015 30);--accent:oklch(.73 .16 38);--accent-contrast:oklch(.14 .03 30);--accent-soft:oklch(.73 .16 38 / .16)}
+[data-theme=cobalt]{--bg:oklch(.11 .012 255);--bg-1:oklch(.14 .014 255);--bg-2:oklch(.16 .015 255);--bg-3:oklch(.19 .017 255);--line:oklch(.23 .018 255);--line-2:oklch(.27 .02 255);--input:oklch(.44 .035 255);--txt:oklch(.97 .005 255);--txt-2:oklch(.74 .02 255);--txt-3:oklch(.62 .02 255);--accent:oklch(.74 .14 255);--accent-contrast:oklch(.13 .03 255);--accent-soft:oklch(.74 .14 255 / .16)}
+[data-theme=violet]{--bg:oklch(.11 .012 300);--bg-1:oklch(.14 .014 300);--bg-2:oklch(.16 .015 300);--bg-3:oklch(.19 .017 300);--line:oklch(.23 .018 300);--line-2:oklch(.27 .02 300);--input:oklch(.44 .035 300);--txt:oklch(.97 .005 300);--txt-2:oklch(.74 .018 300);--txt-3:oklch(.62 .018 300);--accent:oklch(.76 .13 300);--accent-contrast:oklch(.14 .03 300);--accent-soft:oklch(.76 .13 300 / .16)}
+[data-theme=jade]{--bg:oklch(.11 .008 180);--bg-1:oklch(.14 .01 180);--bg-2:oklch(.16 .011 180);--bg-3:oklch(.19 .012 180);--line:oklch(.23 .013 180);--line-2:oklch(.27 .015 180);--input:oklch(.43 .03 180);--txt:oklch(.96 .006 180);--txt-2:oklch(.73 .02 180);--txt-3:oklch(.62 .02 180);--accent:oklch(.81 .12 178);--accent-contrast:oklch(.13 .03 180);--accent-soft:oklch(.81 .12 178 / .15)}
+[data-theme=rose]{--bg:oklch(.11 .008 10);--bg-1:oklch(.14 .01 10);--bg-2:oklch(.16 .011 10);--bg-3:oklch(.19 .012 10);--line:oklch(.23 .013 10);--line-2:oklch(.27 .015 10);--input:oklch(.43 .03 10);--txt:oklch(.97 .005 10);--txt-2:oklch(.73 .015 10);--txt-3:oklch(.62 .015 10);--accent:oklch(.75 .13 12);--accent-contrast:oklch(.14 .03 10);--accent-soft:oklch(.75 .13 12 / .16)}
+[data-theme=paper]{color-scheme:light;--bg:#f8f7f4;--bg-1:#f4f3ef;--bg-2:#efede8;--bg-3:#e7e4dd;--line:#e4e1db;--line-2:#d5d2ca;--input:#a9a49a;--txt:#15171c;--txt-2:#4b4f59;--txt-3:#656a74;--accent:#a06524;--accent-contrast:#fff;--accent-soft:rgba(160,101,36,.16);--ok:oklch(.55 .14 150);--warn:oklch(.6 .13 80);--err:oklch(.55 .19 25);--info:oklch(.55 .14 250);--add:oklch(.5 .13 150);--del:oklch(.55 .19 25);--elev-1:rgba(0,0,0,.045);--elev-2:rgba(0,0,0,.08);--btn-outline:rgba(0,0,0,.14);--backdrop:rgba(20,18,12,.35);--shadow-pop:0 16px 36px rgba(20,18,12,.18)}
+
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+::selection{background:var(--accent);color:var(--accent-contrast)}
+a{color:var(--accent)}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px 96px}
+.mono{font-family:var(--mono)}
+
+/* header */
+header{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--line);margin-bottom:20px}
+.hbar{max-width:1240px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.brand h1{font-size:15px;font-weight:600;letter-spacing:-.01em;margin:0;display:flex;align-items:center;gap:9px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 12px -1px var(--accent)}
+.brand .sub{font:400 11px var(--mono);color:var(--txt-3);margin-top:2px}
+.spacer{flex:1}
+.srv{display:flex;align-items:center;gap:7px;font:400 11px var(--mono);color:var(--txt-3)}
+.srv .sd{width:8px;height:8px;border-radius:50%;background:var(--err);transition:.3s}
+.srv .sd.on{background:var(--ok);box-shadow:0 0 9px -1px var(--ok)}
+.kbdbtn,.tbtn{appearance:none;background:var(--bg-2);border:1px solid var(--line-2);color:var(--txt-2);border-radius:var(--r-sm);height:34px;padding:0 10px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font:500 12px var(--sans);transition:.15s}
+.kbdbtn:hover,.tbtn:hover{background:var(--elev-1);color:var(--txt);border-color:var(--input)}
+kbd{font:600 10px var(--mono);background:var(--bg-3);border:1px solid var(--line-2);border-radius:4px;padding:1px 5px;color:var(--txt-2)}
+
+/* view tabs */
+.vtabs{display:flex;gap:2px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r);padding:3px;overflow-x:auto;scrollbar-width:none}
+.vtabs::-webkit-scrollbar{display:none}
+.vtab{appearance:none;background:transparent;border:0;color:var(--txt-3);font:600 12.5px var(--sans);padding:7px 13px;border-radius:var(--r-sm);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:7px;transition:.15s}
+.vtab:hover{color:var(--txt);background:var(--elev-1)}
+.vtab[aria-selected=true]{background:var(--accent);color:var(--accent-contrast)}
+.vtab .cnt{font:600 10px var(--mono);opacity:.7}
+
+/* kpis */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+.kpi{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px;cursor:pointer;transition:.15s;position:relative;overflow:hidden}
+.kpi:hover{border-color:var(--input);background:var(--bg-2)}
+.kpi .n{font:600 24px var(--mono);letter-spacing:-.02em;line-height:1}
+.kpi .l{font:500 11px var(--sans);color:var(--txt-3);text-transform:uppercase;letter-spacing:.05em;margin-top:7px}
+.kpi .d{font:400 11px var(--mono);color:var(--txt-3);margin-top:3px}
+.kpi .spark{position:absolute;right:10px;top:10px;opacity:.5}
+
+.section{margin-bottom:26px}
+.section>.sh{display:flex;align-items:center;gap:10px;margin:0 0 12px}
+.section>.sh h2{font-size:12px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--txt-2);margin:0}
+.section>.sh .hint{font:400 11px var(--mono);color:var(--txt-3)}
+.section>.sh .line{flex:1;height:1px;background:var(--line)}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+@media(max-width:900px){.grid2,.grid3{grid-template-columns:1fr}}
+.card{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.card .ct{font:600 12px var(--sans);color:var(--txt-2);margin:0 0 4px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card .cs{font:400 11px var(--mono);color:var(--txt-3);margin:0 0 14px}
+
+/* charts */
+.barrow{display:flex;align-items:center;gap:10px;margin-bottom:9px;cursor:pointer}
+.barrow:hover .blabel{color:var(--txt)}
+.blabel{width:118px;flex:0 0 auto;font:500 12px var(--sans);color:var(--txt-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:7px}
+.btrack{flex:1;height:22px;background:var(--bg-3);border-radius:5px;overflow:hidden;display:flex}
+.bfill{height:100%;display:flex;align-items:center;padding-left:8px;font:600 10px var(--mono);color:var(--accent-contrast);min-width:2px;transition:width .5s var(--ease-out)}
+.bval{width:62px;flex:0 0 auto;text-align:right;font:600 12px var(--mono);color:var(--txt-2)}
+.ini{width:20px;height:20px;border-radius:5px;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center;font:700 9px var(--mono);color:#fff}
+
+/* donut legend */
+.donutwrap{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.legend{display:flex;flex-direction:column;gap:7px;flex:1;min-width:150px}
+.lgrow{display:flex;align-items:center;gap:9px;cursor:pointer;padding:3px 5px;border-radius:5px;transition:.12s}
+.lgrow:hover{background:var(--elev-1)}
+.lgdot{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+.lglabel{flex:1;font:500 12.5px var(--sans);color:var(--txt-2)}
+.lgval{font:600 12px var(--mono);color:var(--txt-3)}
+
+/* controls */
+.controls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.search{flex:1;min-width:200px;position:relative}
+.search input{width:100%;height:38px;background:var(--bg-2);border:1px solid var(--line-2);border-radius:var(--r-sm);color:var(--txt);padding:0 34px 0 12px;font:400 13px var(--sans);outline:none}
+.search input:focus{border-color:var(--input)}
+.search .sc{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:var(--bg-3);border:1px solid var(--line-2);color:var(--txt-3);border-radius:4px;height:24px;width:24px;cursor:pointer;font-size:13px}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}
+.chip{appearance:none;font:500 11.5px var(--mono);color:var(--txt-2);background:var(--bg-2);border:1px solid var(--line);border-radius:999px;height:30px;padding:0 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:.14s}
+.chip:hover{background:var(--elev-1);color:var(--txt)}
+.chip[aria-pressed=true]{background:var(--accent-soft);border-color:var(--accent);color:var(--txt)}
+.chip .cd{width:8px;height:8px;border-radius:50%}
+.chip .cx{font:600 11px var(--mono);color:var(--txt-3)}
+.chipgroups{display:flex;flex-direction:column;gap:9px;margin-bottom:14px}
+.chipgroup{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.chipgroup>.gl{font:600 10px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--txt-3);width:64px;flex:0 0 auto}
+
+/* table */
+.tablewrap{border:1px solid var(--line);border-radius:var(--r);overflow:hidden;background:var(--bg-1)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{position:sticky;top:60px;background:var(--bg-2);text-align:left;font:600 10.5px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--txt-3);padding:9px 12px;border-bottom:1px solid var(--line-2);white-space:nowrap;user-select:none}
+thead th.srt{cursor:pointer}
+thead th.srt:hover{color:var(--txt)}
+thead th .ar{opacity:0;margin-left:4px}
+thead th[data-active] .ar{opacity:1;color:var(--accent)}
+tbody tr{border-bottom:1px solid var(--line);cursor:pointer;transition:background .1s}
+tbody tr:last-child{border-bottom:0}
+tbody tr:hover{background:var(--elev-1)}
+tbody tr[data-sel]{background:var(--accent-soft)}
+tbody td{padding:9px 12px;vertical-align:middle}
+td.h{font-family:var(--mono);color:var(--accent)}
+td.subj{max-width:340px}
+td.subj .txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.pill{display:inline-flex;align-items:center;gap:5px;font:600 10px var(--mono);text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:999px;border:1px solid var(--line-2);color:var(--txt-2);white-space:nowrap}
+.pill.feat{color:var(--info);border-color:color-mix(in srgb,var(--info) 45%,transparent)}
+.pill.fix{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,transparent)}
+.pill.docs{color:var(--txt-3)}
+.pill.refactor{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 45%,transparent)}
+.pill.release{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 45%,transparent)}
+.pill.chore{color:var(--txt-3)}
+.bpill{display:inline-flex;align-items:center;gap:4px;font:600 10px var(--mono);padding:2px 7px;border-radius:5px;background:var(--bg-3);border:1px solid var(--line-2);color:var(--txt-2);white-space:nowrap}
+.bpill.cur{border-color:var(--accent);color:var(--accent)}
+.plusminus{font-family:var(--mono);font-size:12px;white-space:nowrap}
+.plus{color:var(--add)}.minus{color:var(--del)}
+.avatar{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font:700 9px var(--mono);color:#fff;flex:0 0 auto}
+.who{display:inline-flex;align-items:center;gap:7px}
+.empty{padding:40px;text-align:center;color:var(--txt-3);font:400 13px var(--mono)}
+
+/* branch railway */
+.railway{display:flex;flex-direction:column;gap:14px}
+.branchrow{display:grid;grid-template-columns:210px 1fr;gap:16px;align-items:center;background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r);padding:13px 16px}
+.branchrow.cur{border-color:var(--accent)}
+.binfo .bn{font:600 13px var(--mono);color:var(--txt);display:flex;align-items:center;gap:7px;word-break:break-all}
+.binfo .brole{font:500 10px var(--sans);text-transform:uppercase;letter-spacing:.05em;color:var(--txt-3);margin-top:3px}
+.badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+.bg{font:600 9.5px var(--mono);padding:2px 7px;border-radius:5px;border:1px solid var(--line-2);color:var(--txt-3)}
+.bg.ahead{color:var(--ok);border-color:color-mix(in srgb,var(--ok) 40%,transparent)}
+.bg.behind{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent)}
+.bg.sync{color:var(--info);border-color:color-mix(in srgb,var(--info) 40%,transparent)}
+.bg.local{color:var(--txt-3)}
+.track{display:flex;align-items:center;gap:0;position:relative;min-height:40px;flex-wrap:wrap}
+.tbase{display:flex;align-items:center;gap:0}
+.node{width:15px;height:15px;border-radius:50%;border:2px solid var(--input);background:var(--bg-3);flex:0 0 auto;z-index:2}
+.node.base{border-color:var(--txt-3);background:var(--txt-3)}
+.node.fork{border-color:var(--accent);background:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.node.uniq{cursor:pointer}
+.edge{width:26px;height:2px;background:var(--line-2);flex:0 0 auto}
+.edge.uniq{background:var(--accent)}
+.forklabel{font:500 10px var(--mono);color:var(--txt-3);margin-left:8px}
+.divbars{display:flex;flex-direction:column;gap:10px}
+.divrow{display:grid;grid-template-columns:200px 1fr 46px;gap:12px;align-items:center}
+.divrow .dl{font:600 12px var(--mono);color:var(--txt-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.divtrack{height:16px;background:var(--bg-3);border-radius:4px;overflow:hidden}
+.divfill{height:100%;background:var(--accent);border-radius:4px;transition:width .5s var(--ease-out)}
+.divval{font:600 12px var(--mono);color:var(--txt-2);text-align:right}
+
+/* remote panel */
+.statusbanner{display:flex;align-items:center;gap:14px;background:var(--bg-1);border:1px solid var(--line);border-left:3px solid var(--ok);border-radius:var(--r);padding:16px 18px;margin-bottom:16px}
+.statusbanner.warn{border-left-color:var(--warn)}
+.statusbanner .icon{font-size:22px}
+.statusbanner .st{font:600 14px var(--sans)}
+.statusbanner .ss{font:400 12px var(--mono);color:var(--txt-3);margin-top:2px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px}
+.kv .k{font:500 12px var(--mono);color:var(--txt-3)}
+.kv .v{font:400 13px var(--sans);color:var(--txt)}
+
+/* plan / live feedback */
+.howto{font:400 12.5px var(--sans);color:var(--txt-3);background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r);padding:12px 15px;margin-bottom:16px}
+.howto b{color:var(--txt-2)}
+details.f{background:var(--bg-1);border:1px solid var(--line);border-radius:var(--r);margin-bottom:11px;overflow:hidden;transition:border-color .15s}
+details.f[open]{border-color:var(--line-2);background:var(--bg-2)}
+details.f.hidden{display:none}
+details.f>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:12px;padding:13px 15px;min-height:52px}
+details.f>summary::-webkit-details-marker{display:none}
+.f .sd{width:9px;height:9px;border-radius:50%;flex:none;background:var(--input)}
+.f .ttl{font-weight:600;font-size:13.5px;min-width:0;flex:1}
+.f .ttl .sec{color:var(--txt-3);font-weight:400;font-family:var(--mono);font-size:11px}
+.f .state{font:600 10px var(--mono);letter-spacing:.05em;text-transform:uppercase;padding:3px 9px;border-radius:999px;white-space:nowrap;border:1px solid var(--line-2);color:var(--txt-3);flex:none}
+.f .state.approved{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.f .state.rejected{background:color-mix(in srgb,var(--err) 16%,transparent);border-color:var(--err);color:var(--err)}
+.f .state.edited{background:color-mix(in srgb,var(--warn) 16%,transparent);border-color:var(--warn);color:var(--warn)}
+.f .chev{width:16px;height:16px;color:var(--txt-3);flex:none;transition:transform .2s}
+details.f[open] .chev{transform:rotate(180deg)}
+.f .body{padding:0 15px 15px}
+.f .why{color:var(--txt-2);font-size:12.5px;margin:0 0 12px;max-width:76ch}
+.blk{margin-bottom:12px}
+.blk .lb{font:600 10px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--txt-3);margin-bottom:5px;display:flex;gap:8px;align-items:center}
+.blk .lb .hint{font-weight:400;letter-spacing:0;text-transform:none;opacity:.8}
+.txt{font:400 12.5px/1.6 var(--mono);background:var(--bg);border:1px solid var(--line);border-radius:var(--r-sm);padding:11px;white-space:pre-wrap;overflow-wrap:anywhere}
+.blk.cur .txt{color:var(--txt-3);border-left:3px solid var(--err)}
+.blk.sug .txt{color:var(--txt);border-left:3px solid var(--accent);cursor:text}
+.blk.sug textarea{width:100%;font:400 12.5px/1.6 var(--mono);color:var(--txt);background:var(--bg-3);border:1px solid var(--accent);border-radius:var(--r-sm);padding:11px;min-height:76px;resize:vertical;outline:none}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.abtn{appearance:none;font:600 12.5px var(--sans);min-height:36px;padding:0 15px;border-radius:var(--r-sm);cursor:pointer;background:var(--bg-3);color:var(--txt);border:1px solid var(--line-2);display:inline-flex;align-items:center;gap:6px;transition:.15s}
+.abtn:hover{border-color:var(--input)}
+.abtn.ap[data-on="1"]{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast)}
+.abtn.rj[data-on="1"]{background:var(--err);border-color:var(--err);color:#fff}
+.abtn.rv{color:var(--txt-3)}
+
+/* command bar */
+.cb-overlay{position:fixed;inset:0;z-index:var(--z-cmdbar);background:linear-gradient(145deg,rgba(0,0,0,.4),rgba(0,0,0,.66));backdrop-filter:blur(3px);display:none;align-items:flex-start;justify-content:center;padding:12vh 16px 16px}
+.cb-overlay.open{display:flex}
+.cb-dialog{width:min(620px,96vw);background:var(--bg-1);border:1px solid var(--line-2);border-radius:12px;box-shadow:var(--shadow-pop);display:flex;flex-direction:column;overflow:hidden;max-height:70vh}
+.cb-head{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.cb-input{flex:1;background:transparent;border:0;outline:0;color:var(--txt);font:400 15px var(--sans)}
+.cb-input::placeholder{color:var(--txt-3)}
+.cb-list{overflow-y:auto;padding:6px}
+.cb-group{padding:9px 10px 4px;font:600 10px var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--txt-3)}
+.cb-item{height:38px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 10px;border-radius:6px;cursor:pointer;color:var(--txt-2);font:400 13px var(--sans)}
+.cb-item[data-selected]{background:var(--elev-2);color:var(--txt)}
+.cb-item .ci-l{display:flex;align-items:center;gap:10px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.cb-item .ci-ic{width:16px;text-align:center;color:var(--txt-3);font:12px var(--mono)}
+.cb-item[data-selected] .ci-ic{color:var(--accent)}
+.cb-item .ci-k{font:500 10px var(--mono);color:var(--txt-3)}
+.cb-empty{padding:26px;text-align:center;color:var(--txt-3);font:400 12px var(--mono)}
+
+/* drawer */
+.drawer-back{position:fixed;inset:0;z-index:var(--z-drawer);background:var(--backdrop);display:none}
+.drawer-back.open{display:block}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(460px,94vw);background:var(--bg-1);border-left:1px solid var(--line-2);z-index:calc(var(--z-drawer) + 1);transform:translateX(100%);transition:transform .28s var(--ease-out);display:flex;flex-direction:column;box-shadow:var(--shadow-pop)}
+.drawer.open{transform:none}
+.dh{display:flex;align-items:flex-start;gap:12px;padding:16px 18px;border-bottom:1px solid var(--line)}
+.dh .x{margin-left:auto;background:var(--bg-3);border:1px solid var(--line-2);color:var(--txt-2);border-radius:6px;height:30px;width:30px;cursor:pointer;font-size:15px;flex:0 0 auto}
+.dbody{overflow-y:auto;padding:16px 18px;flex:1}
+.filelist{display:flex;flex-direction:column;gap:4px;margin-top:6px}
+.filerow{display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--bg-2);border:1px solid var(--line);border-radius:var(--r-sm)}
+.filerow .fp{flex:1;font:400 12px var(--mono);color:var(--txt-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.minibar{display:flex;gap:1px;align-items:center;width:64px;flex:0 0 auto}
+.minibar i{height:8px;border-radius:1px}
+.minibar i.a{background:var(--add)}.minibar i.d{background:var(--del)}
+
+/* toast */
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);z-index:var(--z-toast);background:var(--bg-3);color:var(--txt);border:1px solid var(--line-2);border-radius:999px;padding:10px 18px;font:500 13px var(--sans);opacity:0;pointer-events:none;transition:.2s;max-width:90vw}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.hidden{display:none!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style></head>
+<body>
+<header>
+  <div class="hbar">
+    <div class="brand">
+      <h1><span class="dot"></span> __APP_TITLE__ · Changes</h1>
+      <div class="sub" id="brandsub"></div>
+    </div>
+    <span class="spacer"></span>
+    <div class="srv" title="Live-feedback listener (127.0.0.1:47613)"><span class="sd" id="srvdot"></span><span id="srvlbl">listener: checking…</span></div>
+    <button class="tbtn" id="themebtn" title="Cycle theme (t)">◐ <span id="themename">mono</span></button>
+    <button class="kbdbtn" id="cmdopen" title="Command bar (⌘K)"><kbd>⌘</kbd><kbd>K</kbd></button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="vtabs" role="tablist" id="vtabs">
+    <button class="vtab" role="tab" data-view="overview">◈ Overview</button>
+    <button class="vtab" role="tab" data-view="commits">◍ Commits <span class="cnt" id="tc-commits"></span></button>
+    <button class="vtab" role="tab" data-view="branches">⑃ Branches <span class="cnt" id="tc-branches"></span></button>
+    <button class="vtab" role="tab" data-view="remote">⇅ Remote</button>
+    <button class="vtab" role="tab" data-view="plan">✓ Plan &amp; Submit <span class="cnt" id="tc-plan"></span></button>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <!-- OVERVIEW -->
+  <div class="viewpane" data-pane="overview">
+    <div class="section">
+      <div class="sh"><h2>Contribution</h2><span class="hint">click a bar to filter commits</span><span class="line"></span></div>
+      <div class="grid2">
+        <div class="card"><div class="ct">Commits by author <span class="mono" style="color:var(--txt-3)">git blame</span></div><div class="cs">who authored what — click to drill in</div><div id="chart-author"></div></div>
+        <div class="card"><div class="ct">Lines changed by author</div><div class="cs">added <span class="plus">▮</span> / removed <span class="minus">▮</span> across all commits</div><div id="chart-authorlines"></div></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="sh"><h2>Distribution</h2><span class="line"></span></div>
+      <div class="grid2">
+        <div class="card"><div class="ct">Change types</div><div class="cs">click a type to filter</div><div class="donutwrap"><div id="donut"></div><div class="legend" id="donut-legend"></div></div></div>
+        <div class="card"><div class="ct">Top files by churn</div><div class="cs">total lines touched (add + del)</div><div id="chart-files"></div></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="sh"><h2>Timeline</h2><span class="hint">commits per month</span><span class="line"></span></div>
+      <div class="card"><div id="chart-timeline"></div></div>
+    </div>
+  </div>
+
+  <!-- COMMITS -->
+  <div class="viewpane hidden" data-pane="commits">
+    <div class="controls">
+      <div class="search"><input id="search" type="text" placeholder="Search subject, hash, author, file…" autocomplete="off"><button class="sc" id="searchclear" title="Clear">✕</button></div>
+      <button class="tbtn" id="exportcsv" title="Export CSV (e)">⭳ CSV</button>
+      <button class="tbtn" id="clearfilters">Clear filters</button>
+    </div>
+    <div class="chipgroups" id="chipgroups"></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr id="thead"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- BRANCHES -->
+  <div class="viewpane hidden" data-pane="branches">
+    <div class="section">
+      <div class="sh"><h2>Branch topology</h2><span class="hint">all branches fork from <span class="mono">6f10c86</span> (main tip)</span><span class="line"></span></div>
+      <div class="railway" id="railway"></div>
+    </div>
+    <div class="section">
+      <div class="sh"><h2>Divergence vs main</h2><span class="hint">unique commits ahead</span><span class="line"></span></div>
+      <div class="card"><div class="divbars" id="divbars"></div></div>
+    </div>
+    <div class="section">
+      <div class="sh"><h2>Compare two branches</h2><span class="line"></span></div>
+      <div class="card">
+        <div class="controls">
+          <select id="cmpA" class="tbtn" style="height:38px"></select>
+          <span class="mono" style="color:var(--txt-3)">↔</span>
+          <select id="cmpB" class="tbtn" style="height:38px"></select>
+        </div>
+        <div id="cmpresult"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- REMOTE -->
+  <div class="viewpane hidden" data-pane="remote">
+    <div class="section">
+      <div class="sh"><h2>Remote &amp; upstream</h2><span class="hint">fetched 2026-07-22</span><span class="line"></span></div>
+      <div id="remotebanner"></div>
+      <div class="grid2">
+        <div class="card"><div class="ct">Remotes</div><div class="kv" id="remotekv"></div></div>
+        <div class="card"><div class="ct">Branch ↔ origin sync</div><div id="synctable"></div></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="sh"><h2>Working tree (uncommitted)</h2><span class="hint" id="wtbranch"></span><span class="line"></span></div>
+      <div class="card"><div id="worktree"></div></div>
+    </div>
+    <div class="section">
+      <div class="sh"><h2>Pull in changes — safely</h2><span class="line"></span></div>
+      <div class="card">
+        <div id="pullstatus"></div>
+        <div class="acts" style="margin-top:14px">
+          <button class="abtn ap" id="planpull">◔ Plan a safe pull / reconcile →</button>
+        </div>
+        <p class="cs" style="margin-top:12px;margin-bottom:0">Any pull/merge is staged as an approve/reject/edit <b>plan</b> first (Plan &amp; Submit tab). Nothing runs until you submit it back to Claude.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLAN -->
+  <div class="viewpane hidden" data-pane="plan">
+    <div class="howto"><b>How to use:</b> ✓ Approve or ✗ Reject each action · <b>double-click any suggested text</b> to edit it (Esc cancels, click away saves) · decisions auto-save in this browser · <b>Submit to Claude</b> sends everything back for safe execution. Nothing is run locally by this page.</div>
+    <div class="controls">
+      <div id="plancounts" class="mono" style="color:var(--txt-2)"></div>
+      <span class="spacer"></span>
+      <button class="tbtn" id="p-expand">Expand all</button>
+      <button class="tbtn" id="p-collapse">Collapse all</button>
+      <button class="abtn ap" id="p-submit" data-on="1" style="min-height:38px">⇧ Submit to Claude</button>
+    </div>
+    <div id="plangroups"></div>
+  </div>
+</div>
+
+<!-- command bar -->
+<div class="cb-overlay" id="cbov">
+  <div class="cb-dialog" role="dialog" aria-modal="true" aria-label="Command bar">
+    <div class="cb-head"><span class="mono" style="color:var(--txt-3)">⌘</span><input class="cb-input" id="cbin" placeholder="Jump to view, filter, sort, switch theme…" autocomplete="off"></div>
+    <div class="cb-list" id="cblist"></div>
+  </div>
+</div>
+
+<!-- drawer -->
+<div class="drawer-back" id="drback"></div>
+<aside class="drawer" id="drawer" aria-label="Commit detail"></aside>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+/* ============================ SAMPLE DATA — replace with real git output (see top-of-file HOW TO POPULATE) ============================ */
+/* AUTHORS: map of authorKey -> {name,email,color,role}. color = any CSS color (avatars + charts). */
+var AUTHORS = {
+  "ada": {name:"ada", email:"ada@example.com", color:"#e8a33d", role:"maintainer"},
+  "lin": {name:"lin", email:"lin@example.com", color:"#5b8def", role:"contributor"},
+  "sam": {name:"sam", email:"sam@example.com", color:"#3fb27f", role:"you"}
+};
+/* ALLB: every branch name, used for filter chips + compare selectors. */
+var ALLB = ["main","feature/search","fix/pagination","release/1.4"];
+/* COMMITS: newest first. Each = {h:shortHash, author:key, date:"YYYY-MM-DD", type, subject,
+   branches:[names that CONTAIN this commit], files:[{p:path,a:added,d:deleted,bin?:true}]}.
+   type ∈ feat|fix|refactor|docs|release|chore. */
+var COMMITS = [
+  {h:"f2d4e5f",author:"ada",date:"2026-07-18",type:"fix",subject:"fix: debounce search input to cut re-queries",branches:["feature/search"],files:[{p:"src/search.ts",a:24,d:9},{p:"tests/search.test.ts",a:31,d:0}]},
+  {h:"f1a2b3c",author:"sam",date:"2026-07-17",type:"feat",subject:"feat: fuzzy search ranking with score weights",branches:["feature/search"],files:[{p:"src/search.ts",a:186,d:12},{p:"src/index.ts",a:22,d:4},{p:"tests/search.test.ts",a:74,d:0}]},
+  {h:"p1a9b8c",author:"lin",date:"2026-07-16",type:"fix",subject:"fix: cursor pagination off-by-one at page boundary",branches:["fix/pagination"],files:[{p:"src/paginate.ts",a:18,d:11}]},
+  {h:"c0ffee0",author:"ada",date:"2026-07-12",type:"feat",subject:"feat: search API surface + query parser",branches:["main","feature/search","fix/pagination"],files:[{p:"src/search.ts",a:142,d:0},{p:"src/index.ts",a:38,d:6},{p:"README.md",a:20,d:2}]},
+  {h:"5a6b7c8",author:"lin",date:"2026-07-08",type:"refactor",subject:"refactor: split engine into modules",branches:["main","feature/search","fix/pagination"],files:[{p:"src/engine.ts",a:64,d:210},{p:"src/paginate.ts",a:96,d:0},{p:"src/index.ts",a:30,d:41}]},
+  {h:"6d1e2f3",author:"sam",date:"2026-07-04",type:"fix",subject:"fix: config loader ignores env overrides",branches:["main","feature/search","fix/pagination","release/1.4"],files:[{p:"src/config.ts",a:27,d:14}]},
+  {h:"7a8b9c0",author:"ada",date:"2026-07-02",type:"docs",subject:"docs: quickstart + API reference in README",branches:["main","feature/search","fix/pagination","release/1.4"],files:[{p:"README.md",a:118,d:9}]},
+  {h:"8d4e5f6",author:"ada",date:"2026-06-28",type:"feat",subject:"feat: core engine + plugin loader",branches:["main","feature/search","fix/pagination","release/1.4"],files:[{p:"src/engine.ts",a:264,d:0},{p:"src/index.ts",a:88,d:0}]},
+  {h:"9a1b2c3",author:"ada",date:"2026-06-25",type:"release",subject:"chore: initial scaffold + tooling",branches:["main","feature/search","fix/pagination","release/1.4"],files:[{p:"package.json",a:41,d:0},{p:"tsconfig.json",a:19,d:0},{p:".gitignore",a:12,d:0},{p:"README.md",a:22,d:0}]}
+];
+/* BRANCHES: {name,tip,role, ahead/behind vs main, origin:{tracked,ahead,behind} (tracked:false = local-only),
+   current:bool, uniq:[shortHashes only on this branch, newest first]}. */
+var BRANCHES = [
+  {name:"main",           tip:"c0ffee0", role:"base / default",          ahead:0, behind:0, origin:{tracked:true, ahead:0, behind:0}, current:false, uniq:[]},
+  {name:"feature/search", tip:"f2d4e5f", role:"current · fuzzy search",  ahead:2, behind:0, origin:{tracked:true, ahead:0, behind:0}, current:true,  uniq:["f2d4e5f","f1a2b3c"]},
+  {name:"fix/pagination", tip:"p1a9b8c", role:"bugfix",                  ahead:1, behind:0, origin:{tracked:false}, current:false, uniq:["p1a9b8c"]},
+  {name:"release/1.4",    tip:"6d1e2f3", role:"release branch (stale)",   ahead:0, behind:2, origin:{tracked:true, ahead:0, behind:0}, current:false, uniq:[]}
+];
+/* REMOTE: origin + optional upstream. pullable = commits upstream is ahead of you (0 = in sync).
+   Set upstream:null for a single-remote repo (no fork). */
+var REMOTE = {
+  origin:"https://github.com/you/your-repo.git",
+  upstream:"https://github.com/acme/your-repo.git",
+  upstreamBranch:"upstream/main",
+  fetchDate:"__APP_DATE__",
+  clean:true,
+  pullable:3
+};
+/* WORKING: uncommitted state. modified:[{p,a,d,note}], untracked:[paths]. */
+var WORKING = {
+  branch:"feature/search",
+  modified:[
+    {p:"src/search.ts", a:42, d:8, note:"tune ranking weights + tie-breakers"},
+    {p:"src/index.ts",  a:12, d:3, note:"wire --search flag through CLI"}
+  ],
+  untracked:["docs/plans/","notes/"]
+};
+/* PLAN_ITEMS: interactive approve/reject/edit cards (live feedback -> Submit to Claude).
+   {id, group, kind:verify|structural|note, title, current, suggested, why}. */
+var PLAN_ITEMS = [
+  {id:"p01",group:"Remote sync",kind:"verify",title:"Pull 3 upstream commits (review first)",
+   current:"upstream/main is 3 commits ahead. Local main is level with origin. Fetch was clean.",
+   suggested:"Fetch + review the 3 upstream commits, then merge (or rebase) onto main and push to origin. Do NOT fast-forward blindly — read the diffs first.",
+   why:"Staying current with upstream shrinks future merge conflicts; reviewing first avoids pulling in surprises."},
+  {id:"p02",group:"Branch reconciliation",kind:"structural",title:"Rebase feature/search onto latest main",
+   current:"feature/search is +2 ahead of main (tip c0ffee0), 0 behind. Two unique commits: fuzzy ranking + debounce.",
+   suggested:"git rebase main feature/search, resolve any conflicts, re-run tests, force-push with --force-with-lease.",
+   why:"A linear history off current main makes the eventual PR clean and easy to review."},
+  {id:"p03",group:"Working tree",kind:"verify",title:"Commit the WIP on feature/search",
+   current:"Uncommitted: src/search.ts (+42/-8) ranking tweaks, src/index.ts (+12/-3) CLI flag.",
+   suggested:"Commit as: `feat: tune search ranking + expose --search flag`. Land it before any rebase/merge.",
+   why:"Uncommitted work is invisible to branch operations and easy to lose during a rebase."},
+  {id:"p04",group:"Integration",kind:"structural",title:"Open PR: feature/search → main",
+   current:"After p02/p03, feature/search is ready: fuzzy search ranking + input debounce, synced with origin.",
+   suggested:"Open a PR summarizing the search feature + test coverage; request review.",
+   why:"This is the branch meant to reach main."},
+  {id:"p05",group:"Cleanup",kind:"note",title:"Retire stale release/1.4",
+   current:"release/1.4 is 2 behind main, 0 ahead — no unique work.",
+   suggested:"If 1.4 already shipped, tag the release and delete the branch (local + origin). Confirm before deleting.",
+   why:"A branch that only trails main is noise; tag-and-delete keeps the branch list meaningful."}
+];
+
+/* ============================ derive ============================ */
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+function initials(n){return n.slice(0,2).toUpperCase();}
+function commitAdds(c){return c.files.reduce(function(s,f){return s+f.a;},0);}
+function commitDels(c){return c.files.reduce(function(s,f){return s+f.d;},0);}
+var TYPES=[{k:"feat",c:"var(--info)"},{k:"fix",c:"var(--warn)"},{k:"refactor",c:"var(--accent)"},{k:"docs",c:"var(--txt-3)"},{k:"release",c:"var(--ok)"},{k:"chore",c:"#8a8a8a"}];
+function typeColor(t){var x=TYPES.filter(function(y){return y.k===t;})[0];return x?x.c:"var(--txt-3)";}
+
+/* totals */
+var TOTAL={commits:COMMITS.length,adds:0,dels:0,files:{}};
+COMMITS.forEach(function(c){TOTAL.adds+=commitAdds(c);TOTAL.dels+=commitDels(c);c.files.forEach(function(f){if(!TOTAL.files[f.p])TOTAL.files[f.p]={a:0,d:0,authors:{}};TOTAL.files[f.p].a+=f.a;TOTAL.files[f.p].d+=f.d;var au=TOTAL.files[f.p].authors;au[c.author]=(au[c.author]||0)+f.a+f.d;});});
+var AUTHORSTATS={};
+Object.keys(AUTHORS).forEach(function(k){AUTHORSTATS[k]={commits:0,adds:0,dels:0,files:{}};});
+COMMITS.forEach(function(c){var s=AUTHORSTATS[c.author];s.commits++;s.adds+=commitAdds(c);s.dels+=commitDels(c);c.files.forEach(function(f){s.files[f.p]=1;});});
+
+/* ============================ state ============================ */
+var LS="__APP_SLUG__:dash";
+var state={view:"overview",theme:"mono",sortKey:"date",sortDir:-1,search:"",filters:{author:[],branch:[],type:[]},selected:null,cmpA:"main",cmpB:"feature/search"};
+try{var saved=JSON.parse(localStorage.getItem(LS)||"{}");Object.keys(saved).forEach(function(k){state[k]=saved[k];});}catch(e){}
+function save(){try{localStorage.setItem(LS,JSON.stringify({view:state.view,theme:state.theme,sortKey:state.sortKey,sortDir:state.sortDir,cmpA:state.cmpA,cmpB:state.cmpB}));}catch(e){}}
+
+/* plan decisions persistence (plan-template contract) */
+var PLS="__APP_SLUG__:plan";
+var pstate={};try{pstate=JSON.parse(localStorage.getItem(PLS)||"{}");}catch(e){pstate={};}
+function psave(){localStorage.setItem(PLS,JSON.stringify(pstate));}
+function pst(id){if(!pstate[id])pstate[id]={status:"pending",text:null};return pstate[id];}
+
+/* ============================ helpers ============================ */
+function $(s,r){return (r||document).querySelector(s);}
+function $$(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s));}
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e;}
+var toastEl=$("#toast"),toastT;
+function toast(m,ms){toastEl.textContent=m;toastEl.classList.add("show");clearTimeout(toastT);toastT=setTimeout(function(){toastEl.classList.remove("show");},ms||2200);}
+var CHEV='<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+
+/* ============================ theme ============================ */
+var THEMES=["mono","graphite","phosphor","amber","ember","cobalt","violet","jade","rose","paper"];
+function applyTheme(t){state.theme=t;if(t==="mono")document.body.removeAttribute("data-theme");else document.body.setAttribute("data-theme",t);$("#themename").textContent=t;save();}
+function cycleTheme(){var i=THEMES.indexOf(state.theme);applyTheme(THEMES[(i+1)%THEMES.length]);toast("Theme: "+state.theme);}
+applyTheme(state.theme);
+
+/* ============================ KPIs ============================ */
+function renderKpis(){
+  var wt=WORKING.modified.reduce(function(s,f){return s+f.a+f.d;},0);
+  var kpis=[
+    {n:TOTAL.commits,l:"commits",d:"all branches",go:function(){goto("commits");}},
+    {n:Object.keys(AUTHORS).length,l:"contributors",d:"hanzili · Solshine · you",go:function(){goto("overview");}},
+    {n:BRANCHES.length,l:"branches",d:"1 base · 3 derived",go:function(){goto("branches");}},
+    {n:"+"+TOTAL.adds.toLocaleString(),l:"lines added",d:"−"+TOTAL.dels.toLocaleString()+" removed",go:function(){goto("overview");}},
+    {n:Object.keys(TOTAL.files).length,l:"files touched",d:"across history",go:function(){goto("commits");}},
+    {n:WORKING.modified.length,l:"uncommitted",d:"~"+wt+" lines · "+WORKING.untracked.length+" untracked dirs",go:function(){goto("remote");}},
+    (function(){var pull=REMOTE.upstream?(REMOTE.pullable||0):0;return {n:pull>0?("↓"+pull):"✓",l:REMOTE.upstream?"upstream":"origin sync",d:REMOTE.upstream?(pull>0?(pull+" commits to pull"):"in sync w/ upstream"):"up to date · 0 to pull",go:function(){goto("remote");}};})()
+  ];
+  var c=$("#kpis");c.innerHTML="";
+  kpis.forEach(function(k){
+    var d=el("div","kpi");
+    d.appendChild(el("div","n",String(k.n)));
+    d.appendChild(el("div","l",k.l));
+    d.appendChild(el("div","d",k.d));
+    d.addEventListener("click",k.go);
+    c.appendChild(d);
+  });
+}
+
+/* ============================ charts ============================ */
+function barRow(label,color,val,max,ini,iniColor,onClick){
+  var row=el("div","barrow");
+  var lb=el("div","blabel");
+  if(ini){var b=el("span","ini",ini);b.style.background=iniColor||color;lb.appendChild(b);}
+  lb.appendChild(document.createTextNode(label));
+  var track=el("div","btrack");
+  var fill=el("div","bfill");fill.style.width=Math.max(2,(val/max*100))+"%";fill.style.background=color;
+  track.appendChild(fill);
+  var v=el("div","bval",typeof val==="number"?val.toLocaleString():val);
+  row.appendChild(lb);row.appendChild(track);row.appendChild(v);
+  if(onClick)row.addEventListener("click",onClick);
+  return row;
+}
+function renderCharts(){
+  /* author commits */
+  var ac=$("#chart-author");ac.innerHTML="";
+  var aks=Object.keys(AUTHORSTATS).sort(function(a,b){return AUTHORSTATS[b].commits-AUTHORSTATS[a].commits;});
+  var amax=Math.max.apply(null,aks.map(function(k){return AUTHORSTATS[k].commits;}));
+  aks.forEach(function(k){
+    ac.appendChild(barRow(k,AUTHORS[k].color,AUTHORSTATS[k].commits,amax,initials(k),AUTHORS[k].color,function(){toggleFilter("author",k);goto("commits");}));
+  });
+  /* author lines (stacked add/del) */
+  var al=$("#chart-authorlines");al.innerHTML="";
+  var lmax=Math.max.apply(null,aks.map(function(k){return AUTHORSTATS[k].adds+AUTHORSTATS[k].dels;}));
+  aks.forEach(function(k){
+    var s=AUTHORSTATS[k];
+    var row=el("div","barrow");
+    var lb=el("div","blabel");var b=el("span","ini",initials(k));b.style.background=AUTHORS[k].color;lb.appendChild(b);lb.appendChild(document.createTextNode(k));
+    var track=el("div","btrack");
+    var fa=el("div","bfill");fa.style.width=(s.adds/lmax*100)+"%";fa.style.background="var(--add)";fa.textContent=s.adds>400?("+"+s.adds):"";
+    var fd=el("div","bfill");fd.style.width=(s.dels/lmax*100)+"%";fd.style.background="var(--del)";
+    track.appendChild(fa);track.appendChild(fd);
+    var v=el("div","bval","+"+s.adds.toLocaleString());
+    row.appendChild(lb);row.appendChild(track);row.appendChild(v);
+    row.addEventListener("click",function(){toggleFilter("author",k);goto("commits");});
+    al.appendChild(row);
+  });
+  /* donut types */
+  renderDonut();
+  /* files churn */
+  var fc=$("#chart-files");fc.innerHTML="";
+  var fk=Object.keys(TOTAL.files).map(function(p){return {p:p,t:TOTAL.files[p].a+TOTAL.files[p].d,a:TOTAL.files[p].a,d:TOTAL.files[p].d};}).sort(function(a,b){return b.t-a.t;}).slice(0,8);
+  var fmax=fk[0]?fk[0].t:1;
+  fk.forEach(function(f){
+    var row=el("div","barrow");
+    var lb=el("div","blabel");lb.title=f.p;lb.textContent=f.p.replace(/^src\//,"");
+    var track=el("div","btrack");
+    var fa=el("div","bfill");fa.style.width=(f.a/fmax*100)+"%";fa.style.background="var(--add)";
+    var fd=el("div","bfill");fd.style.width=(f.d/fmax*100)+"%";fd.style.background="var(--del)";
+    track.appendChild(fa);track.appendChild(fd);
+    var v=el("div","bval",f.t.toLocaleString());
+    row.appendChild(lb);row.appendChild(track);row.appendChild(v);
+    row.addEventListener("click",function(){state.search=f.p;$("#search").value=f.p;toggleView();goto("commits");renderTable();});
+    fc.appendChild(row);
+  });
+  /* timeline */
+  renderTimeline();
+}
+function renderDonut(){
+  var counts={};TYPES.forEach(function(t){counts[t.k]=0;});
+  COMMITS.forEach(function(c){counts[c.type]=(counts[c.type]||0)+1;});
+  var total=COMMITS.length,R=52,C=2*Math.PI*R,off=0;
+  var segs=TYPES.filter(function(t){return counts[t.k]>0;});
+  var svg='<svg width="130" height="130" viewBox="0 0 130 130" style="transform:rotate(-90deg)">';
+  svg+='<circle cx="65" cy="65" r="'+R+'" fill="none" stroke="var(--bg-3)" stroke-width="16"/>';
+  segs.forEach(function(t){
+    var frac=counts[t.k]/total,len=frac*C;
+    svg+='<circle cx="65" cy="65" r="'+R+'" fill="none" stroke="'+t.c+'" stroke-width="16" stroke-dasharray="'+len+' '+(C-len)+'" stroke-dashoffset="'+(-off)+'"/>';
+    off+=len;
+  });
+  svg+='</svg>';
+  var wrap=el("div");wrap.style.position="relative";wrap.innerHTML=svg;
+  var ctr=el("div");ctr.style.cssText="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center";
+  ctr.innerHTML='<div class="mono" style="font-size:22px;font-weight:600">'+total+'</div><div style="font-size:10px;color:var(--txt-3);text-transform:uppercase;letter-spacing:.05em">commits</div>';
+  wrap.appendChild(ctr);
+  var d=$("#donut");d.innerHTML="";d.appendChild(wrap);
+  var lg=$("#donut-legend");lg.innerHTML="";
+  segs.forEach(function(t){
+    var r=el("div","lgrow");
+    var dot=el("span","lgdot");dot.style.background=t.c;
+    r.appendChild(dot);
+    r.appendChild(el("span","lglabel",t.k));
+    r.appendChild(el("span","lgval",counts[t.k]+" · "+Math.round(counts[t.k]/total*100)+"%"));
+    r.addEventListener("click",function(){toggleFilter("type",t.k);goto("commits");});
+    lg.appendChild(r);
+  });
+}
+function renderTimeline(){
+  var months={};
+  COMMITS.forEach(function(c){var m=c.date.slice(0,7);if(!months[m])months[m]={c:0,a:0,d:0};months[m].c++;months[m].a+=commitAdds(c);months[m].d+=commitDels(c);});
+  var keys=Object.keys(months).sort();
+  var max=Math.max.apply(null,keys.map(function(k){return months[k].c;}));
+  var W=Math.max(520,keys.length*90),H=160,pad=28,bw=46;
+  var svg='<svg width="100%" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="xMinYMid meet" style="font-family:var(--mono)">';
+  keys.forEach(function(k,i){
+    var x=pad+i*((W-pad*2)/keys.length),h=(months[k].c/max)*(H-56);
+    svg+='<rect x="'+x+'" y="'+(H-24-h)+'" width="'+bw+'" height="'+h+'" rx="4" fill="var(--accent)"/>';
+    svg+='<text x="'+(x+bw/2)+'" y="'+(H-28-h)+'" fill="var(--txt-2)" font-size="11" text-anchor="middle" font-weight="600">'+months[k].c+'</text>';
+    svg+='<text x="'+(x+bw/2)+'" y="'+(H-8)+'" fill="var(--txt-3)" font-size="10" text-anchor="middle">'+k+'</text>';
+  });
+  svg+='</svg>';
+  $("#chart-timeline").innerHTML=svg;
+}
+
+/* ============================ commits table ============================ */
+var COLS=[
+  {k:"date",l:"Date",srt:true},
+  {k:"h",l:"Hash",srt:true},
+  {k:"type",l:"Type",srt:true},
+  {k:"author",l:"Author",srt:true},
+  {k:"branches",l:"Branch",srt:false},
+  {k:"files",l:"Files",srt:true},
+  {k:"adds",l:"+",srt:true},
+  {k:"dels",l:"−",srt:true},
+  {k:"subject",l:"Subject",srt:false}
+];
+function renderChips(){
+  var cg=$("#chipgroups");cg.innerHTML="";
+  var groups=[
+    {key:"author",label:"Author",opts:Object.keys(AUTHORS),color:function(o){return AUTHORS[o].color;}},
+    {key:"branch",label:"Branch",opts:ALLB,color:function(){return "var(--accent)";}},
+    {key:"type",label:"Type",opts:TYPES.map(function(t){return t.k;}),color:function(o){return typeColor(o);}}
+  ];
+  groups.forEach(function(g){
+    var row=el("div","chipgroup");
+    row.appendChild(el("span","gl",g.label));
+    g.opts.forEach(function(o){
+      var b=el("button","chip");
+      b.setAttribute("aria-pressed",state.filters[g.key].indexOf(o)>=0?"true":"false");
+      var d=el("span","cd");d.style.background=g.color(o);b.appendChild(d);
+      b.appendChild(document.createTextNode(o));
+      var cnt=COMMITS.filter(function(c){return g.key==="branch"?c.branches.indexOf(o)>=0:c[g.key]===o;}).length;
+      b.appendChild(el("span","cx",String(cnt)));
+      b.addEventListener("click",function(){toggleFilter(g.key,o);});
+      row.appendChild(b);
+    });
+    cg.appendChild(row);
+  });
+}
+function toggleFilter(key,val){
+  var arr=state.filters[key],i=arr.indexOf(val);
+  if(i>=0)arr.splice(i,1);else arr.push(val);
+  renderChips();renderTable();updateTabCounts();
+}
+function filtered(){
+  var q=state.search.trim().toLowerCase();
+  return COMMITS.filter(function(c){
+    if(state.filters.author.length&&state.filters.author.indexOf(c.author)<0)return false;
+    if(state.filters.type.length&&state.filters.type.indexOf(c.type)<0)return false;
+    if(state.filters.branch.length&&!state.filters.branch.some(function(b){return c.branches.indexOf(b)>=0;}))return false;
+    if(q){
+      var hay=(c.subject+" "+c.h+" "+c.author+" "+c.type+" "+c.files.map(function(f){return f.p;}).join(" ")).toLowerCase();
+      if(hay.indexOf(q)<0)return false;
+    }
+    return true;
+  });
+}
+function sortVal(c,k){
+  if(k==="files")return c.files.length;
+  if(k==="adds")return commitAdds(c);
+  if(k==="dels")return commitDels(c);
+  if(k==="branches")return c.branches.length;
+  return c[k];
+}
+function renderHead(){
+  var tr=$("#thead");tr.innerHTML="";
+  COLS.forEach(function(col){
+    var th=el("th",col.srt?"srt":null);
+    th.appendChild(document.createTextNode(col.l));
+    if(col.srt){var ar=el("span","ar",state.sortDir<0?"↓":"↑");th.appendChild(ar);if(state.sortKey===col.k)th.setAttribute("data-active","");
+      th.addEventListener("click",function(){if(state.sortKey===col.k)state.sortDir*=-1;else{state.sortKey=col.k;state.sortDir=(col.k==="date"?-1:-1);}save();renderHead();renderTable();});}
+    tr.appendChild(th);
+  });
+}
+function renderTable(){
+  var rows=filtered().slice().sort(function(a,b){
+    var va=sortVal(a,state.sortKey),vb=sortVal(b,state.sortKey);
+    if(va<vb)return -1*state.sortDir;if(va>vb)return 1*state.sortDir;return 0;
+  });
+  var tb=$("#tbody");tb.innerHTML="";
+  if(!rows.length){var tr=el("tr");var td=el("td","empty");td.colSpan=COLS.length;td.textContent="No commits match filters";tr.appendChild(td);tb.appendChild(tr);return;}
+  rows.forEach(function(c){
+    var tr=el("tr");tr.dataset.h=c.h;if(state.selected===c.h)tr.setAttribute("data-sel","");
+    tr.appendChild(el("td",null,c.date));
+    var htd=el("td","h",c.h);tr.appendChild(htd);
+    var tt=el("td");var pill=el("span","pill "+c.type,c.type);tt.appendChild(pill);tr.appendChild(tt);
+    var at=el("td");var who=el("span","who");var av=el("span","avatar",initials(c.author));av.style.background=AUTHORS[c.author].color;who.appendChild(av);who.appendChild(document.createTextNode(c.author));at.appendChild(who);tr.appendChild(at);
+    var bt=el("td");c.branches.forEach(function(b){var bp=el("span","bpill"+(b===WORKING.branch?" cur":""),b.length>18?(b.slice(0,17)+"…"):b);bp.title=b;bt.appendChild(bp);});tr.appendChild(bt);
+    tr.appendChild(el("td",null,String(c.files.length)));
+    var pt=el("td");pt.innerHTML='<span class="plusminus"><span class="plus">+'+commitAdds(c)+'</span></span>';tr.appendChild(pt);
+    var mt=el("td");mt.innerHTML='<span class="plusminus"><span class="minus">−'+commitDels(c)+'</span></span>';tr.appendChild(mt);
+    var st=el("td","subj");var sp=el("span","txt",c.subject);sp.title=c.subject;st.appendChild(sp);tr.appendChild(st);
+    tr.addEventListener("click",function(){openDrawer(c.h);});
+    tb.appendChild(tr);
+  });
+}
+
+/* ============================ drawer ============================ */
+function openDrawer(h){
+  var c=COMMITS.filter(function(x){return x.h===h;})[0];if(!c)return;
+  state.selected=h;$$("#tbody tr").forEach(function(t){t.toggleAttribute("data-sel",t.dataset.h===h);});
+  var dr=$("#drawer");
+  var maxf=Math.max.apply(null,c.files.map(function(f){return f.a+f.d;}))||1;
+  var html='';
+  html+='<div class="dh"><div><div class="mono" style="font-size:15px;color:var(--accent)">'+c.h+'</div>';
+  html+='<div style="font-weight:600;margin-top:6px;max-width:340px">'+esc(c.subject)+'</div>';
+  html+='<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+  html+='<span class="who"><span class="avatar" style="background:'+AUTHORS[c.author].color+'">'+initials(c.author)+'</span>'+c.author+'</span>';
+  html+='<span class="mono" style="color:var(--txt-3);font-size:11px">'+c.date+'</span>';
+  html+='<span class="pill '+c.type+'">'+c.type+'</span></div>';
+  html+='<div class="badges" style="margin-top:8px">'+c.branches.map(function(b){return '<span class="bg'+(b===WORKING.branch?" ahead":"")+'">'+esc(b)+'</span>';}).join('')+'</div>';
+  html+='</div><button class="x" id="drx">✕</button></div>';
+  html+='<div class="dbody">';
+  html+='<div class="kv"><span class="k">files</span><span class="v">'+c.files.length+'</span>';
+  html+='<span class="k">added</span><span class="v" style="color:var(--add)">+'+commitAdds(c)+'</span>';
+  html+='<span class="k">removed</span><span class="v" style="color:var(--del)">−'+commitDels(c)+'</span></div>';
+  html+='<div class="ct" style="margin:16px 0 6px;font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--txt-3)">Files changed</div>';
+  html+='<div class="filelist">';
+  c.files.forEach(function(f){
+    var aw=f.bin?0:Math.round(f.a/maxf*54),dw=f.bin?0:Math.round(f.d/maxf*54);
+    html+='<div class="filerow"><span class="fp" title="'+esc(f.p)+'">'+esc(f.p)+'</span>';
+    html+='<span class="minibar"><i class="a" style="width:'+aw+'px"></i><i class="d" style="width:'+dw+'px"></i></span>';
+    html+='<span class="plusminus" style="width:70px;text-align:right">'+(f.bin?'<span style="color:var(--txt-3)">bin</span>':'<span class="plus">+'+f.a+'</span> <span class="minus">−'+f.d+'</span>')+'</span></div>';
+  });
+  html+='</div></div>';
+  dr.innerHTML=html;
+  dr.classList.add("open");$("#drback").classList.add("open");
+  $("#drx").addEventListener("click",closeDrawer);
+}
+function closeDrawer(){$("#drawer").classList.remove("open");$("#drback").classList.remove("open");state.selected=null;$$("#tbody tr").forEach(function(t){t.removeAttribute("data-sel");});}
+$("#drback").addEventListener("click",closeDrawer);
+
+/* ============================ branches ============================ */
+function renderBranches(){
+  var rw=$("#railway");rw.innerHTML="";
+  BRANCHES.forEach(function(b){
+    var row=el("div","branchrow"+(b.current?" cur":""));
+    var info=el("div","binfo");
+    var bn=el("div","bn");if(b.current){var d=el("span","node fork");d.style.width="10px";d.style.height="10px";bn.appendChild(d);}bn.appendChild(document.createTextNode(b.name));
+    info.appendChild(bn);
+    info.appendChild(el("div","brole",b.role));
+    var badges=el("div","badges");
+    if(b.ahead)badges.appendChild(el("span","bg ahead","▲ "+b.ahead+" ahead"));
+    if(b.behind)badges.appendChild(el("span","bg behind","▼ "+b.behind+" behind"));
+    if(b.origin.tracked)badges.appendChild(el("span","bg sync","⇅ origin synced"));
+    else badges.appendChild(el("span","bg local","local-only"));
+    info.appendChild(badges);
+    row.appendChild(info);
+    var track=el("div","track");
+    /* base node = main tip fork point */
+    var base=el("span","node fork");base.title="6f10c86 (fork point / main tip)";track.appendChild(base);
+    b.uniq.slice().reverse().forEach(function(hh){
+      var e=el("span","edge uniq");track.appendChild(e);
+      var c=COMMITS.filter(function(x){return x.h===hh;})[0];
+      var n=el("span","node uniq");n.style.borderColor=c?AUTHORS[c.author].color:"var(--accent)";n.style.background=c?AUTHORS[c.author].color:"var(--accent)";
+      n.title=c?(c.h+" · "+c.author+" · "+c.subject):hh;
+      n.addEventListener("click",function(){goto("commits");openDrawer(hh);});
+      track.appendChild(n);
+    });
+    if(!b.uniq.length){var lbl=el("span","forklabel","= main (no unique commits)");track.appendChild(lbl);}
+    else{var lbl2=el("span","forklabel",b.uniq.length+" unique →");track.appendChild(lbl2);}
+    row.appendChild(track);
+    rw.appendChild(row);
+  });
+  /* divergence bars */
+  var db=$("#divbars");db.innerHTML="";
+  var dmax=Math.max.apply(null,BRANCHES.map(function(b){return b.ahead;}))||1;
+  BRANCHES.forEach(function(b){
+    var row=el("div","divrow");
+    row.appendChild(el("div","dl",b.name));
+    var t=el("div","divtrack");var f=el("div","divfill");f.style.width=(b.ahead/dmax*100)+"%";if(!b.ahead)f.style.background="var(--line-2)";t.appendChild(f);
+    row.appendChild(t);
+    row.appendChild(el("div","divval","+"+b.ahead));
+    db.appendChild(row);
+  });
+  /* compare selects */
+  ["cmpA","cmpB"].forEach(function(id){
+    var sel=$("#"+id);sel.innerHTML="";
+    ALLB.forEach(function(b){var o=el("option",null,b);o.value=b;if(state[id]===b)o.selected=true;sel.appendChild(o);});
+    sel.onchange=function(){state[id]=sel.value;save();renderCompare();};
+  });
+  renderCompare();
+}
+function branchCommits(name){
+  return COMMITS.filter(function(c){return c.branches.indexOf(name)>=0;}).map(function(c){return c.h;});
+}
+function renderCompare(){
+  var A=state.cmpA,B=state.cmpB;
+  var ca=branchCommits(A),cb=branchCommits(B);
+  var onlyA=ca.filter(function(h){return cb.indexOf(h)<0;});
+  var onlyB=cb.filter(function(h){return ca.indexOf(h)<0;});
+  var shared=ca.filter(function(h){return cb.indexOf(h)>=0;}).length;
+  function list(hs,color){
+    if(!hs.length)return '<div class="cs" style="margin:0">— none —</div>';
+    return hs.map(function(h){var c=COMMITS.filter(function(x){return x.h===h;})[0];return '<div class="filerow" style="cursor:pointer" onclick="window.__open(\''+h+'\')"><span class="avatar" style="width:18px;height:18px;background:'+AUTHORS[c.author].color+'">'+initials(c.author)+'</span><span class="fp">'+c.h+' · '+esc(c.subject)+'</span></div>';}).join('');
+  }
+  var html='';
+  html+='<div class="cs" style="margin:14px 0 8px">Shared base: <b class="mono" style="color:var(--txt-2)">'+shared+'</b> commits · <span style="color:var(--ok)">'+onlyA.length+'</span> only in '+esc(A)+' · <span style="color:var(--info)">'+onlyB.length+'</span> only in '+esc(B)+'</div>';
+  html+='<div class="grid2">';
+  html+='<div><div class="blk"><div class="lb">Only in '+esc(A)+'</div><div class="filelist">'+list(onlyA)+'</div></div></div>';
+  html+='<div><div class="blk"><div class="lb">Only in '+esc(B)+'</div><div class="filelist">'+list(onlyB)+'</div></div></div>';
+  html+='</div>';
+  $("#cmpresult").innerHTML=html;
+}
+window.__open=function(h){goto("commits");openDrawer(h);};
+
+/* ============================ remote ============================ */
+function renderRemote(){
+  var pull=REMOTE.upstream?(REMOTE.pullable||0):0;
+  var banner=el("div","statusbanner"+(pull>0?" warn":""));
+  if(pull>0){
+    banner.innerHTML='<span class="icon">↓</span><div><div class="st">'+pull+' commit'+(pull>1?"s":"")+' available to pull from '+esc(REMOTE.upstreamBranch||"upstream")+'</div><div class="ss">Fetched '+REMOTE.fetchDate+' · review the diffs before merging · stage it as a plan below (nothing runs from this page)</div></div>';
+  }else{
+    banner.innerHTML='<span class="icon">✓</span><div><div class="st">Up to date — nothing to pull</div><div class="ss">Fetched '+REMOTE.fetchDate+' · all tracked branches level (ahead 0 / behind 0)'+(REMOTE.upstream?" · in sync with upstream":" · no upstream remote configured")+'</div></div>';
+  }
+  $("#remotebanner").innerHTML="";$("#remotebanner").appendChild(banner);
+  var kv=$("#remotekv");kv.innerHTML="";
+  [["origin (fetch/push)",REMOTE.origin],["upstream",REMOTE.upstream||"— not configured —"],["upstream branch",REMOTE.upstream?(REMOTE.upstreamBranch||"—"):"—"],["last fetch",REMOTE.fetchDate+" (clean)"]].forEach(function(p){
+    kv.appendChild(el("span","k",p[0]));kv.appendChild(el("span","v",p[1]));
+  });
+  var stbl=$("#synctable");stbl.innerHTML="";
+  BRANCHES.forEach(function(b){
+    var row=el("div","filerow");
+    row.appendChild(el("span","fp",b.name));
+    var badge;
+    if(!b.origin.tracked){badge=el("span","bg local","local-only (no origin/"+b.name.split("/").pop()+")");}
+    else{badge=el("span","bg sync","⇅ 0↑ 0↓ synced");}
+    row.appendChild(badge);
+    stbl.appendChild(row);
+  });
+  /* working tree */
+  $("#wtbranch").textContent="on "+WORKING.branch;
+  var wt=$("#worktree");wt.innerHTML="";
+  var maxw=Math.max.apply(null,WORKING.modified.map(function(f){return f.a+f.d;}))||1;
+  var head=el("div","ct");head.style.cssText="font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--txt-3);margin-bottom:8px";head.textContent="Modified ("+WORKING.modified.length+")";
+  wt.appendChild(head);
+  var list=el("div","filelist");
+  WORKING.modified.forEach(function(f){
+    var aw=Math.round(f.a/maxw*54),dw=Math.round(f.d/maxw*54);
+    var r=el("div","filerow");
+    var wrap=el("div");wrap.style.flex="1";wrap.style.minWidth="0";
+    wrap.innerHTML='<div class="fp" style="color:var(--txt)">'+esc(f.p)+'</div><div class="cs" style="margin:2px 0 0">'+esc(f.note)+'</div>';
+    r.appendChild(wrap);
+    var mb=el("span","minibar");mb.innerHTML='<i class="a" style="width:'+aw+'px"></i><i class="d" style="width:'+dw+'px"></i>';r.appendChild(mb);
+    r.appendChild(el("span","plusminus",""));r.lastChild.innerHTML='<span class="plus">+'+f.a+'</span> <span class="minus">−'+f.d+'</span>';
+    list.appendChild(r);
+  });
+  wt.appendChild(list);
+  var head2=el("div","ct");head2.style.cssText="font:600 11px var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--txt-3);margin:14px 0 8px";head2.textContent="Untracked ("+WORKING.untracked.length+")";
+  wt.appendChild(head2);
+  var ul=el("div","chips");WORKING.untracked.forEach(function(u){var c=el("span","chip");c.appendChild(document.createTextNode(u));ul.appendChild(c);});wt.appendChild(ul);
+  /* pull status */
+  var ps=$("#pullstatus");
+  var stale=BRANCHES.filter(function(b){return !b.current&&b.ahead===0&&b.behind>0;}).length;
+  ps.innerHTML='<div class="kv"><span class="k">pullable now</span><span class="v" style="color:'+(pull>0?"var(--warn)":"var(--ok)")+'">'+(pull>0?(pull+" commits from "+esc(REMOTE.upstreamBranch||"upstream")):"0 (in sync)")+'</span>'+
+    '<span class="k">reconcilable</span><span class="v">'+WORKING.modified.length+' uncommitted file'+(WORKING.modified.length!==1?"s":"")+' · '+stale+' stale branch'+(stale!==1?"es":"")+'</span>'+
+    '<span class="k">action</span><span class="v">stage a plan → review → submit to Claude</span></div>';
+}
+$("#planpull").addEventListener("click",function(){goto("plan");toast("Reconciliation plan ready — review & submit");});
+
+/* ============================ plan (live feedback) ============================ */
+function planRefreshCounts(){
+  var ap=0,rj=0,pd=0;
+  PLAN_ITEMS.forEach(function(f){var s=pst(f.id).status;if(s==="approved")ap++;else if(s==="rejected")rj++;else pd++;});
+  $("#plancounts").textContent="✓ "+ap+"   ✗ "+rj+"   ○ "+pd+"   / "+PLAN_ITEMS.length;
+  $("#tc-plan").textContent=pd?("· "+pd+" open"):"· ready";
+}
+function buildPlanCard(f){
+  var d=document.createElement("details");d.className="f";d.dataset.id=f.id;d.dataset.group=f.group;d.open=true;
+  var sum=document.createElement("summary");
+  var ttl=el("span","ttl");ttl.appendChild(document.createTextNode(f.title+" "));ttl.appendChild(el("span","sec","· "+f.kind));
+  var badge=el("span","state","pending");
+  sum.appendChild(el("span","sd"));sum.appendChild(ttl);sum.appendChild(badge);sum.insertAdjacentHTML("beforeend",CHEV);
+  d.appendChild(sum);
+  var body=el("div","body");
+  if(f.why)body.appendChild(el("p","why",f.why));
+  if(f.current){var cur=el("div","blk cur");cur.appendChild(el("div","lb","Current"));cur.appendChild(el("div","txt",f.current));body.appendChild(cur);}
+  var sug=el("div","blk sug");var sl=el("div","lb");sl.appendChild(document.createTextNode("Proposed action"));sl.appendChild(el("span","hint","double-click to edit"));sug.appendChild(sl);
+  var sugTxt=el("div","txt");sugTxt.textContent=pst(f.id).text!=null?pst(f.id).text:f.suggested;sug.appendChild(sugTxt);body.appendChild(sug);
+  var acts=el("div","acts");
+  var ap=el("button","abtn ap","✓ Approve"),rj=el("button","abtn rj","✗ Reject"),rv=el("button","abtn rv","↺ Revert edit");
+  acts.appendChild(ap);acts.appendChild(rj);acts.appendChild(rv);body.appendChild(acts);d.appendChild(body);
+  function paint(){var s=pst(f.id);ap.dataset.on=s.status==="approved"?"1":"0";rj.dataset.on=s.status==="rejected"?"1":"0";
+    var edited=s.text!=null&&s.text!==f.suggested;badge.textContent=s.status+(edited?" · edited":"");badge.className="state "+(s.status!=="pending"?s.status:(edited?"edited":""));
+    d.querySelector(".sd").style.background=s.status==="approved"?"var(--accent)":(s.status==="rejected"?"var(--err)":"var(--input)");
+    rv.style.display=edited?"":"none";planRefreshCounts();}
+  ap.addEventListener("click",function(){var s=pst(f.id);s.status=s.status==="approved"?"pending":"approved";psave();paint();});
+  rj.addEventListener("click",function(){var s=pst(f.id);s.status=s.status==="rejected"?"pending":"rejected";psave();paint();});
+  rv.addEventListener("click",function(){var s=pst(f.id);s.text=null;sugTxt.textContent=f.suggested;psave();paint();toast("Reverted");});
+  sugTxt.addEventListener("dblclick",function(){
+    if(sug.querySelector("textarea"))return;
+    var ta=document.createElement("textarea");ta.value=pst(f.id).text!=null?pst(f.id).text:f.suggested;sugTxt.style.display="none";sug.appendChild(ta);
+    ta.style.height=Math.max(76,ta.scrollHeight+8)+"px";ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);
+    var cancelled=false;
+    ta.addEventListener("keydown",function(e){if(e.key==="Escape"){cancelled=true;ta.blur();}});
+    ta.addEventListener("blur",function(){if(!cancelled){var v=ta.value.trim();var s=pst(f.id);s.text=(v===f.suggested||v==="")?null:v;psave();}sugTxt.textContent=pst(f.id).text!=null?pst(f.id).text:f.suggested;sugTxt.style.display="";ta.remove();paint();if(!cancelled)toast("Edit saved");});
+  });
+  paint();return d;
+}
+function renderPlan(){
+  var groups=[];PLAN_ITEMS.forEach(function(f){if(groups.indexOf(f.group)<0)groups.push(f.group);});
+  var g=$("#plangroups");g.innerHTML="";
+  groups.forEach(function(gn){
+    var sec=el("section");sec.style.marginBottom="22px";
+    var gh=el("div","sh");gh.appendChild(el("span","node fork"));gh.lastChild.style.cssText="width:9px;height:9px";
+    var h2=el("h2",null,gn);h2.style.cssText="font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--txt-2);margin:0";gh.appendChild(h2);
+    var items=PLAN_ITEMS.filter(function(f){return f.group===gn;});
+    gh.appendChild(el("span","hint",items.length+" item"+(items.length>1?"s":"")));gh.lastChild.style.cssText="font:400 11px var(--mono);color:var(--txt-3)";
+    sec.appendChild(gh);
+    items.forEach(function(f){sec.appendChild(buildPlanCard(f));});
+    g.appendChild(sec);
+  });
+  planRefreshCounts();
+}
+$("#p-expand").addEventListener("click",function(){$$("#plangroups details").forEach(function(d){d.open=true;});});
+$("#p-collapse").addEventListener("click",function(){$$("#plangroups details").forEach(function(d){d.open=false;});});
+var ENDPOINT="http://127.0.0.1:47613";
+$("#p-submit").addEventListener("click",function(){
+  var pending=PLAN_ITEMS.filter(function(f){return pst(f.id).status==="pending";}).length;
+  if(pending>0&&!confirm(pending+" item(s) still pending — sent as “pending” (Claude skips them). Submit anyway?"))return;
+  var payload={version:1,kind:"plan-decisions",source:"__APP_REPO__ changes-dashboard",submittedAt:new Date().toISOString(),
+    repo:"__APP_REPO__",branch:WORKING.branch,
+    decisions:PLAN_ITEMS.map(function(f){var s=pst(f.id);return {id:f.id,group:f.group,kind:f.kind,title:f.title,status:s.status,current:f.current||"",suggested:s.text!=null?s.text:f.suggested,edited:s.text!=null};})};
+  var body=JSON.stringify(payload,null,2);
+  fetch(ENDPOINT+"/submit",{method:"POST",headers:{"Content-Type":"application/json"},body:body})
+    .then(function(r){return r.json();})
+    .then(function(){toast("✓ Sent to Claude — decisions received",4000);$("#p-submit").textContent="Submitted ✓";})
+    .catch(function(){var blob=new Blob([body],{type:"application/json"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="__APP_REPO__-plan-decisions.json";a.click();toast("Listener offline — downloaded decisions JSON. Tell Claude where it landed.",6000);});
+});
+
+/* listener ping */
+var srvdot=$("#srvdot"),srvlbl=$("#srvlbl");
+function ping(){fetch(ENDPOINT+"/ping").then(function(r){return r.json();}).then(function(){srvdot.classList.add("on");srvlbl.textContent="listener: online";}).catch(function(){srvdot.classList.remove("on");srvlbl.textContent="listener: offline";});}
+ping();setInterval(ping,5000);
+
+/* ============================ CSV ============================ */
+function exportCsv(){
+  var rows=[["date","hash","type","author","email","branches","files","added","removed","subject"]];
+  filtered().forEach(function(c){rows.push([c.date,c.h,c.type,c.author,AUTHORS[c.author].email,c.branches.join(" | "),c.files.length,commitAdds(c),commitDels(c),c.subject]);});
+  var csv=rows.map(function(r){return r.map(function(x){return '"'+String(x).replace(/"/g,'""')+'"';}).join(",");}).join("\n");
+  var blob=new Blob([csv],{type:"text/csv"});var a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="__APP_REPO__-commits.csv";a.click();toast("Exported "+(rows.length-1)+" commits");
+}
+$("#exportcsv").addEventListener("click",exportCsv);
+$("#clearfilters").addEventListener("click",function(){state.filters={author:[],branch:[],type:[]};state.search="";$("#search").value="";renderChips();renderTable();updateTabCounts();toast("Filters cleared");});
+$("#search").addEventListener("input",function(e){state.search=e.target.value;renderTable();updateTabCounts();});
+$("#searchclear").addEventListener("click",function(){state.search="";$("#search").value="";renderTable();updateTabCounts();$("#search").focus();});
+
+/* ============================ views ============================ */
+function updateTabCounts(){
+  $("#tc-commits").textContent="· "+filtered().length+"/"+COMMITS.length;
+  $("#tc-branches").textContent="· "+BRANCHES.length;
+}
+function toggleView(){} /* placeholder used by file-churn click */
+function goto(v){
+  state.view=v;save();
+  $$(".vtab").forEach(function(t){t.setAttribute("aria-selected",t.dataset.view===v?"true":"false");});
+  $$(".viewpane").forEach(function(p){p.classList.toggle("hidden",p.dataset.pane!==v);});
+  if(v==="branches")renderBranches();
+  if(v==="remote")renderRemote();
+  if(v==="plan")renderPlan();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+$$(".vtab").forEach(function(t){t.addEventListener("click",function(){goto(t.dataset.view);});});
+$("#themebtn").addEventListener("click",cycleTheme);
+
+/* ============================ command bar ============================ */
+var CMDS=[];
+function buildCmds(){
+  CMDS=[
+    {g:"Navigate",ic:"◈",label:"Overview",k:"g o",run:function(){goto("overview");}},
+    {g:"Navigate",ic:"◍",label:"Commits",k:"g c",run:function(){goto("commits");}},
+    {g:"Navigate",ic:"⑃",label:"Branches",k:"g b",run:function(){goto("branches");}},
+    {g:"Navigate",ic:"⇅",label:"Remote",k:"g r",run:function(){goto("remote");}},
+    {g:"Navigate",ic:"✓",label:"Plan & Submit",k:"g p",run:function(){goto("plan");}},
+    {g:"Actions",ic:"⭳",label:"Export commits CSV",k:"e",run:exportCsv},
+    {g:"Actions",ic:"⇧",label:"Submit plan to Claude",run:function(){goto("plan");$("#p-submit").click();}},
+    {g:"Actions",ic:"⌫",label:"Clear all filters",run:function(){$("#clearfilters").click();}},
+    {g:"Actions",ic:"◔",label:"Stage safe pull/reconcile plan",run:function(){goto("plan");}}
+  ];
+  Object.keys(AUTHORS).forEach(function(a){CMDS.push({g:"Filter author",ic:"◎",label:a,run:function(){state.filters.author=[a];renderChips();renderTable();goto("commits");}});});
+  TYPES.forEach(function(t){CMDS.push({g:"Filter type",ic:"◆",label:t.k,run:function(){state.filters.type=[t.k];renderChips();renderTable();goto("commits");}});});
+  ALLB.forEach(function(b){CMDS.push({g:"Filter branch",ic:"⑃",label:b,run:function(){state.filters.branch=[b];renderChips();renderTable();goto("commits");}});});
+  THEMES.forEach(function(t){CMDS.push({g:"Theme",ic:"◐",label:"Theme: "+t,run:function(){applyTheme(t);}});});
+}
+buildCmds();
+var cbov=$("#cbov"),cbin=$("#cbin"),cblist=$("#cblist"),cbSel=0,cbFiltered=[];
+function openCmd(){cbov.classList.add("open");cbin.value="";cbSel=0;renderCmd();cbin.focus();}
+function closeCmd(){cbov.classList.remove("open");}
+function renderCmd(){
+  var q=cbin.value.trim().toLowerCase();
+  cbFiltered=CMDS.filter(function(c){return !q||(c.label+" "+c.g).toLowerCase().indexOf(q)>=0;});
+  if(cbSel>=cbFiltered.length)cbSel=0;
+  var html="",lastG=null;
+  if(!cbFiltered.length){cblist.innerHTML='<div class="cb-empty">No matches</div>';return;}
+  cbFiltered.forEach(function(c,i){
+    if(c.g!==lastG){html+='<div class="cb-group">'+c.g+'</div>';lastG=c.g;}
+    html+='<div class="cb-item" data-i="'+i+'"'+(i===cbSel?' data-selected':'')+'><span class="ci-l"><span class="ci-ic">'+c.ic+'</span>'+esc(c.label)+'</span>'+(c.k?'<span class="ci-k">'+c.k+'</span>':'')+'</div>';
+  });
+  cblist.innerHTML=html;
+  $$(".cb-item",cblist).forEach(function(it){it.addEventListener("click",function(){runCmd(parseInt(it.dataset.i,10));});
+    it.addEventListener("mousemove",function(){cbSel=parseInt(it.dataset.i,10);$$(".cb-item",cblist).forEach(function(x){x.toggleAttribute("data-selected",x===it);});});});
+}
+function runCmd(i){var c=cbFiltered[i];if(!c)return;closeCmd();c.run();}
+cbin.addEventListener("input",function(){cbSel=0;renderCmd();});
+cbin.addEventListener("keydown",function(e){
+  if(e.key==="ArrowDown"){e.preventDefault();cbSel=Math.min(cbSel+1,cbFiltered.length-1);renderCmd();scrollSel();}
+  else if(e.key==="ArrowUp"){e.preventDefault();cbSel=Math.max(cbSel-1,0);renderCmd();scrollSel();}
+  else if(e.key==="Enter"){e.preventDefault();runCmd(cbSel);}
+  else if(e.key==="Escape"){closeCmd();}
+});
+function scrollSel(){var s=$(".cb-item[data-selected]",cblist);if(s)s.scrollIntoView({block:"nearest"});}
+$("#cmdopen").addEventListener("click",openCmd);
+cbov.addEventListener("click",function(e){if(e.target===cbov)closeCmd();});
+
+/* ============================ keyboard ============================ */
+var gPending=false;
+document.addEventListener("keydown",function(e){
+  var tag=(e.target.tagName||"").toLowerCase(),typing=tag==="input"||tag==="textarea"||tag==="select";
+  if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k"){e.preventDefault();openCmd();return;}
+  if(typing)return;
+  if(e.key==="?"){e.preventDefault();toast("keys: / search · t theme · e csv · g o/c/b/r/p views · j/k rows · ⏎ open · esc close · ⌘K cmd");return;}
+  if(e.key==="/"){e.preventDefault();goto("commits");$("#search").focus();return;}
+  if(e.key==="t"){cycleTheme();return;}
+  if(e.key==="e"){exportCsv();return;}
+  if(e.key==="Escape"){closeDrawer();closeCmd();return;}
+  if(e.key==="g"){gPending=true;setTimeout(function(){gPending=false;},700);return;}
+  if(gPending){gPending=false;var m={o:"overview",c:"commits",b:"branches",r:"remote",p:"plan"};if(m[e.key]){goto(m[e.key]);}return;}
+  if(state.view==="commits"&&(e.key==="j"||e.key==="k")){
+    var rows=$$("#tbody tr[data-h]");if(!rows.length)return;
+    var idx=rows.findIndex(function(r){return r.dataset.h===state.selected;});
+    if(e.key==="j")idx=Math.min(idx+1,rows.length-1);else idx=Math.max(idx-1,0);
+    if(idx<0)idx=0;var h=rows[idx].dataset.h;state.selected=h;$$("#tbody tr").forEach(function(r){r.toggleAttribute("data-sel",r.dataset.h===h);});rows[idx].scrollIntoView({block:"nearest"});
+  }
+  if(e.key==="Enter"&&state.view==="commits"&&state.selected){openDrawer(state.selected);}
+});
+
+/* ============================ init ============================ */
+$("#brandsub").textContent=COMMITS.length+" commits · "+Object.keys(AUTHORS).length+" contributors · "+BRANCHES.length+" branches";
+renderKpis();renderCharts();renderChips();renderHead();renderTable();updateTabCounts();
+goto(state.view);
+</script>
+</body></html>
