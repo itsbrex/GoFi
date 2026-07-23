@@ -23,7 +23,7 @@ func DownloadTrackToBuffer(ctx context.Context, options DownloadTrackToBufferOpt
 		return nil, fmt.Errorf("failed to fetch track info: %v", err)
 	}
 
-	trackData, err := GetTrackDownloadUrl(track, options.Quality)
+	trackData, err := GetTrackDownloadUrl(ctx, track, options.Quality)
 	if err != nil || trackData == nil {
 		logger.Debug("Failed to retrieve downloadable URL: %v", err)
 		return nil, fmt.Errorf("failed to retrieve downloadable URL: %v", err)
@@ -64,7 +64,10 @@ func DownloadTrackToBuffer(ctx context.Context, options DownloadTrackToBufferOpt
 	}
 
 	// Add metadata to the downloaded track
-	trackWithMetadata, err := metadata.AddTrackTags(trackBody, track, options.CoverSize)
+	trackWithMetadata, err := metadata.AddTrackTags(trackBody, track, metadata.TagOptions{
+		CoverSize: options.CoverSize,
+		CoverMode: metadata.CoverMode(options.CoverMode),
+	})
 	if err != nil {
 		logger.Debug("Failed to add metadata: %v", err)
 		return nil, fmt.Errorf("failed to add metadata: %v", err)

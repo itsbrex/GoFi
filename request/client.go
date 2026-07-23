@@ -38,7 +38,7 @@ func init() {
 		SetQueryParam("screenWidth", "320").
 		SetQueryParam("lang", "en").
 		SetTLSClientConfig(&tls.Config{InsecureSkipVerify: false}).
-		SetRetryCount(2).
+		SetRetryCount(3).
 		SetRetryWaitTime(2 * time.Second).
 		SetRetryMaxWaitTime(5 * time.Second)
 
@@ -98,10 +98,10 @@ func InitDeezerAPI(arl string) (string, error) {
 
 	sessionID = data.Results.Session
 	Client.SetQueryParam("sid", sessionID)
-	
+
 	// Set Cookie header globally to ensure all requests include the ARL
 	Client.SetHeader("Cookie", "arl="+arl)
-	
+
 	logger.Debug("Deezer API initialized successfully, session ID: %s", sessionID)
 
 	// Start the session refresh ticker if not already running

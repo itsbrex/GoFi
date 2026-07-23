@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 
@@ -8,7 +9,7 @@ import (
 )
 
 // ConvertToQueryParams converts map[string]interface{} to map[string]string
-func ConvertToQueryParams(params map[string]interface{}) map[string]string {
+func ConvertToQueryParams(params map[string]any) map[string]string {
 	logger.Debug("Converting parameters to query params: %v", params)
 
 	queryParams := make(map[string]string)
@@ -19,6 +20,13 @@ func ConvertToQueryParams(params map[string]interface{}) map[string]string {
 			valueType := reflect.TypeOf(value)
 			if valueType.Kind() == reflect.Func {
 				convertedValue = "<nil>"
+			} else if valueType.Kind() == reflect.Map || valueType.Kind() == reflect.Slice || valueType.Kind() == reflect.Array || valueType.Kind() == reflect.Struct {
+				data, err := json.Marshal(value)
+				if err != nil {
+					convertedValue = fmt.Sprintf("%v", value)
+				} else {
+					convertedValue = string(data)
+				}
 			} else {
 				convertedValue = fmt.Sprintf("%v", value)
 			}

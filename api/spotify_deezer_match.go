@@ -48,7 +48,7 @@ func SearchTrackOnDeezer(track *models.Track) (types.TrackType, error) {
 	// Get the first result - could improve this by comparing durations, etc.
 	trackID := fmt.Sprint(searchResult.TRACK.Data[0].SNG_ID)
 	logger.Debug("Found potential track match: %s", trackID)
-	
+
 	return GetTrackInfo(trackID)
 }
 
@@ -90,7 +90,7 @@ func SearchAlbumOnDeezer(album *models.Album) (types.AlbumType, error) {
 	// Get the first result
 	albumID := fmt.Sprint(searchResult.ALBUM.Data[0].ALB_ID)
 	logger.Debug("Found potential album match: %s", albumID)
-	
+
 	return GetAlbumInfo(albumID)
 }
 
@@ -120,7 +120,7 @@ func MatchPlaylistTracks(tracks []models.Track) ([]types.TrackType, error) {
 		}
 
 		result = append(result, deezerTrack)
-		logger.Debug("Successfully matched track %d/%d: %s to Deezer ID %s", 
+		logger.Debug("Successfully matched track %d/%d: %s to Deezer ID %s",
 			i+1, len(tracks), track.Title, deezerTrack.SNG_ID)
 	}
 

@@ -1,9 +1,11 @@
 package download
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/d-fi/GoFi/decrypt"
 	"github.com/d-fi/GoFi/logger"
@@ -31,9 +33,47 @@ func (e *GeoBlocked) Error() string {
 }
 
 var userData *UserData
+var userDataMu sync.Mutex
+
+type deezerUserDataResponse struct {
+	Results struct {
+		Country string `json:"COUNTRY"`
+		User    struct {
+			Options struct {
+				LicenseToken  string     `json:"license_token"`
+				WebLossless   deezerBool `json:"web_lossless"`
+				MobileLosless deezerBool `json:"mobile_loseless"`
+				WebHQ         deezerBool `json:"web_hq"`
+				MobileHQ      deezerBool `json:"mobile_hq"`
+			} `json:"OPTIONS"`
+		} `json:"USER"`
+	} `json:"results"`
+}
+
+type deezerBool bool
+
+func (b *deezerBool) UnmarshalJSON(data []byte) error {
+	var value any
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	switch value := value.(type) {
+	case bool:
+		*b = deezerBool(value)
+	case string:
+		*b = deezerBool(value == "true" || value == "1")
+	case float64:
+		*b = deezerBool(value != 0)
+	default:
+		*b = false
+	}
+	return nil
+}
 
 // DzAuthenticate authenticates with Deezer and retrieves user data.
-func DzAuthenticate() (*UserData, error) {
+func DzAuthenticate(ctx context.Context) (*UserData, error) {
+	userDataMu.Lock()
+	defer userDataMu.Unlock()
 	if userData != nil {
 		logger.Debug("Using cached user data.")
 		return userData, nil
@@ -41,6 +81,7 @@ func DzAuthenticate() (*UserData, error) {
 
 	logger.Debug("Authenticating with Deezer to retrieve user data.")
 	resp, err := request.Client.R().
+		SetContext(ctx).
 		SetQueryParams(map[string]string{
 			"method":      "deezer.getUserData",
 			"api_version": "1.0",
@@ -53,64 +94,39 @@ func DzAuthenticate() (*UserData, error) {
 		return nil, err
 	}
 
-	var data map[string]interface{}
-	if err := json.Unmarshal(resp.Body(), &data); err != nil {
+	parsed, err := parseDeezerUserData(resp.Body())
+	if err != nil {
 		logger.Debug("Failed to parse Deezer user data response: %v", err)
 		return nil, err
 	}
 
-	// Check if there's an error in the response
-	if errData, ok := data["error"].(map[string]interface{}); ok {
-		errMsg := "unknown error"
-		if msg, ok := errData["message"].(string); ok {
-			errMsg = msg
-		}
-		return nil, fmt.Errorf("Deezer API error: %s", errMsg)
-	}
-
-	results, ok := data["results"].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("invalid response structure: missing results")
-	}
-	
-	userInfo, ok := results["USER"].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("invalid response structure: missing USER")
-	}
-	
-	options, ok := userInfo["OPTIONS"].(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("invalid response structure: missing OPTIONS")
-	}
-	
-	country, ok := results["COUNTRY"].(string)
-	if !ok {
-		country = "unknown"
-	}
-
-	// Safe extraction of options with defaults
-	licenseToken, _ := options["license_token"].(string)
-	webLossless, _ := options["web_lossless"].(bool)
-	mobileLossless, _ := options["mobile_lossless"].(bool)
-	mobileLosslessAlt, _ := options["mobile_loseless"].(bool) // Handle typo in API
-	webHQ, _ := options["web_hq"].(bool)
-	mobileHQ, _ := options["mobile_hq"].(bool)
-	
-	userData = &UserData{
-		LicenseToken:      licenseToken,
-		CanStreamLossless: webLossless || mobileLossless || mobileLosslessAlt,
-		CanStreamHQ:       webHQ || mobileHQ,
-		Country:           country,
-	}
+	userData = parsed
 	logger.Debug("Deezer authentication successful. User country: %s", userData.Country)
 
 	return userData, nil
 }
 
+func parseDeezerUserData(body []byte) (*UserData, error) {
+	var data deezerUserDataResponse
+	if err := json.Unmarshal(body, &data); err != nil {
+		return nil, err
+	}
+	options := data.Results.User.Options
+	if options.LicenseToken == "" {
+		return nil, fmt.Errorf("invalid Deezer user data response: missing license token")
+	}
+	return &UserData{
+		LicenseToken:      options.LicenseToken,
+		CanStreamLossless: bool(options.WebLossless) || bool(options.MobileLosless),
+		CanStreamHQ:       bool(options.WebHQ) || bool(options.MobileHQ),
+		Country:           data.Results.Country,
+	}, nil
+}
+
 // GetTrackUrlFromServer fetches the track URL from the server based on the track token and format.
-func GetTrackUrlFromServer(trackToken, format string) (string, error) {
+func GetTrackUrlFromServer(ctx context.Context, trackToken, format string) (string, error) {
 	logger.Debug("Fetching track URL from server for format: %s", format)
-	user, err := DzAuthenticate()
+	user, err := DzAuthenticate(ctx)
 	if err != nil {
 		logger.Debug("Error during Deezer authentication: %v", err)
 		return "", err
@@ -123,9 +139,10 @@ func GetTrackUrlFromServer(trackToken, format string) (string, error) {
 	}
 
 	resp, err := request.Client.R().
-		SetBody(map[string]interface{}{
+		SetContext(ctx).
+		SetBody(map[string]any{
 			"license_token": user.LicenseToken,
-			"media": []map[string]interface{}{
+			"media": []map[string]any{
 				{
 					"type":    "FULL",
 					"formats": []map[string]string{{"format": format, "cipher": "BF_CBC_STRIPE"}},
@@ -140,17 +157,17 @@ func GetTrackUrlFromServer(trackToken, format string) (string, error) {
 		return "", err
 	}
 
-	var response map[string]interface{}
+	var response map[string]any
 	if err := json.Unmarshal(resp.Body(), &response); err != nil {
 		logger.Debug("Failed to parse track URL response: %v", err)
 		return "", err
 	}
 
-	data := response["data"].([]interface{})
+	data := response["data"].([]any)
 	if len(data) > 0 {
-		trackData := data[0].(map[string]interface{})
+		trackData := data[0].(map[string]any)
 		if errors, exists := trackData["errors"]; exists {
-			errorCode := errors.([]interface{})[0].(map[string]interface{})["code"].(float64)
+			errorCode := errors.([]any)[0].(map[string]any)["code"].(float64)
 			if errorCode == 2002 {
 				logger.Debug("Track is geo-blocked in user's country: %s", user.Country)
 				return "", &GeoBlocked{Country: user.Country}
@@ -159,9 +176,9 @@ func GetTrackUrlFromServer(trackToken, format string) (string, error) {
 			return "", fmt.Errorf("API error: %v", errors)
 		}
 
-		if media := trackData["media"].([]interface{}); len(media) > 0 {
-			sources := media[0].(map[string]interface{})["sources"].([]interface{})
-			trackURL := sources[0].(map[string]interface{})["url"].(string)
+		if media := trackData["media"].([]any); len(media) > 0 {
+			sources := media[0].(map[string]any)["sources"].([]any)
+			trackURL := sources[0].(map[string]any)["url"].(string)
 			logger.Debug("Track URL fetched successfully: %s", trackURL)
 			return trackURL, nil
 		}
@@ -172,7 +189,7 @@ func GetTrackUrlFromServer(trackToken, format string) (string, error) {
 }
 
 // GetTrackDownloadUrl retrieves the download URL of a track based on quality.
-func GetTrackDownloadUrl(track types.TrackType, quality int) (*TrackDownloadUrl, error) {
+func GetTrackDownloadUrl(ctx context.Context, track types.TrackType, quality int) (*TrackDownloadUrl, error) {
 	var formatName string
 	switch quality {
 	case 9:
@@ -191,9 +208,9 @@ func GetTrackDownloadUrl(track types.TrackType, quality int) (*TrackDownloadUrl,
 	var geoBlocked *GeoBlocked
 
 	// Attempt to get the URL with the official API.
-	url, err := GetTrackUrlFromServer(track.TRACK_TOKEN, formatName)
+	url, err := GetTrackUrlFromServer(ctx, track.TRACK_TOKEN, formatName)
 	if err == nil && url != "" {
-		fileSize, err := utils.CheckURLFileSize(url, nil)
+		fileSize, err := utils.CheckURLFileSize(ctx, url, nil)
 		if err == nil && fileSize > 0 {
 			logger.Debug("Track URL obtained and verified successfully. File size: %d bytes", fileSize)
 			return &TrackDownloadUrl{
@@ -215,20 +232,23 @@ func GetTrackDownloadUrl(track types.TrackType, quality int) (*TrackDownloadUrl,
 	}
 
 	// Fallback to the old method.
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	logger.Debug("Falling back to old method for track URL.")
-	
+
 	// Check if MD5_ORIGIN is empty (usually means authentication failed)
 	if len(track.MD5_ORIGIN) == 0 {
 		return nil, fmt.Errorf("track data incomplete - MD5_ORIGIN is empty. This usually means the Deezer ARL token is invalid or expired. Please run 'gofi auth deezer' to refresh your authentication")
 	}
-	
+
 	filename := decrypt.GetSongFileName(&decrypt.TrackType{
 		MD5_ORIGIN:    track.MD5_ORIGIN,
 		SNG_ID:        track.SNG_ID,
 		MEDIA_VERSION: track.MEDIA_VERSION,
 	}, quality)
 	fallbackURL := fmt.Sprintf("https://e-cdns-proxy-%s.dzcdn.net/mobile/1/%s", string(track.MD5_ORIGIN[0]), filename)
-	fileSize, err := utils.CheckURLFileSize(fallbackURL, nil)
+	fileSize, err := utils.CheckURLFileSize(ctx, fallbackURL, nil)
 	if err == nil && fileSize > 0 {
 		logger.Debug("Fallback URL obtained and verified successfully. File size: %d bytes", fileSize)
 		return &TrackDownloadUrl{

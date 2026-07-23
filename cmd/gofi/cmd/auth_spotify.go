@@ -22,7 +22,7 @@ Requires SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables to be
 	Run: func(cmd *cobra.Command, args []string) {
 		dm := ui.NewDisplayManager()
 		dm.PrintHeader("Spotify Authentication")
-		
+
 		clientID := os.Getenv("SPOTIFY_CLIENT_ID")
 		clientSecret := os.Getenv("SPOTIFY_CLIENT_SECRET")
 
@@ -54,7 +54,7 @@ Requires SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET environment variables to be
 		dm.PrintInfo("Starting Spotify authentication process...")
 		dm.PrintInfo("A browser window will open for you to authenticate...")
 		fmt.Println()
-		
+
 		// Use context.Background() for this CLI command execution context
 		client, err := authService.StartAuthentication(context.Background())
 		if err != nil {

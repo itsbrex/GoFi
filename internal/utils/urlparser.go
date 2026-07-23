@@ -115,4 +115,4 @@ func ParseMusicURL(inputURL string) (*ParsedURLInfo, error) {
 	}
 
 	return nil, fmt.Errorf("unsupported or unrecognized music URL format: %s", inputURL)
-} 
+}

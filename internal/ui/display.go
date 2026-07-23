@@ -48,7 +48,7 @@ func NewDisplayManager() *DisplayManager {
 func (dm *DisplayManager) PrintHeader(text string) {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	
+
 	fmt.Println()
 	HeaderColor.Printf("═══ %s %s ═══\n", IconMusic, text)
 	fmt.Println()
@@ -58,7 +58,7 @@ func (dm *DisplayManager) PrintHeader(text string) {
 func (dm *DisplayManager) PrintInfo(format string, args ...interface{}) {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	
+
 	InfoColor.Printf("%s ", IconInfo)
 	fmt.Printf(format+"\n", args...)
 }
@@ -67,7 +67,7 @@ func (dm *DisplayManager) PrintInfo(format string, args ...interface{}) {
 func (dm *DisplayManager) PrintSuccess(format string, args ...interface{}) {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	
+
 	SuccessColor.Printf("%s ", IconSuccess)
 	fmt.Printf(format+"\n", args...)
 }
@@ -76,7 +76,7 @@ func (dm *DisplayManager) PrintSuccess(format string, args ...interface{}) {
 func (dm *DisplayManager) PrintError(format string, args ...interface{}) {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	
+
 	ErrorColor.Printf("%s ", IconError)
 	fmt.Printf(format+"\n", args...)
 }
@@ -85,7 +85,7 @@ func (dm *DisplayManager) PrintError(format string, args ...interface{}) {
 func (dm *DisplayManager) PrintWarning(format string, args ...interface{}) {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	
+
 	WarningColor.Printf("%s ", IconWarning)
 	fmt.Printf(format+"\n", args...)
 }
@@ -94,7 +94,7 @@ func (dm *DisplayManager) PrintWarning(format string, args ...interface{}) {
 func (dm *DisplayManager) PrintSearching(service string) {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	
+
 	InfoColor.Printf("%s Searching %s... ", IconSearch, service)
 }
 
@@ -111,14 +111,14 @@ func (dm *DisplayManager) PrintSearchResult(success bool) {
 func (dm *DisplayManager) PrintTrackInfo(title, artist, album string, quality int) {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	
+
 	fmt.Println()
 	BoldColor.Println("Track Details:")
 	fmt.Printf("  %s Title:   %s\n", IconMusic, title)
 	fmt.Printf("  %s Artist:  %s\n", IconMusic, artist)
 	fmt.Printf("  %s Album:   %s\n", IconMusic, album)
 	fmt.Printf("  %s Quality: ", IconMusic)
-	
+
 	switch quality {
 	case 9:
 		SuccessColor.Printf("FLAC (Lossless)\n")
@@ -136,14 +136,14 @@ func (dm *DisplayManager) PrintTrackInfo(title, artist, album string, quality in
 func (dm *DisplayManager) PrintAlbumInfo(title, artist string, trackCount int, quality int) {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	
+
 	fmt.Println()
 	BoldColor.Println("Album Details:")
 	fmt.Printf("  %s Title:   %s\n", IconMusic, title)
 	fmt.Printf("  %s Artist:  %s\n", IconMusic, artist)
 	fmt.Printf("  %s Tracks:  %d\n", IconMusic, trackCount)
 	fmt.Printf("  %s Quality: ", IconMusic)
-	
+
 	switch quality {
 	case 9:
 		SuccessColor.Printf("FLAC (Lossless)\n")
@@ -161,7 +161,7 @@ func (dm *DisplayManager) PrintAlbumInfo(title, artist string, trackCount int, q
 func (dm *DisplayManager) PrintPlaylistInfo(title string, owner string, trackCount int, quality int) {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	
+
 	fmt.Println()
 	BoldColor.Println("Playlist Details:")
 	fmt.Printf("  %s Title:   %s\n", IconMusic, title)
@@ -170,7 +170,7 @@ func (dm *DisplayManager) PrintPlaylistInfo(title string, owner string, trackCou
 	}
 	fmt.Printf("  %s Tracks:  %d\n", IconMusic, trackCount)
 	fmt.Printf("  %s Quality: ", IconMusic)
-	
+
 	switch quality {
 	case 9:
 		SuccessColor.Printf("FLAC (Lossless)\n")
@@ -188,13 +188,13 @@ func (dm *DisplayManager) PrintPlaylistInfo(title string, owner string, trackCou
 func (dm *DisplayManager) StartProgress(id string, total int64, description string) *SimpleProgress {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	
+
 	// Truncate description if too long
 	maxLen := 40
 	if len(description) > maxLen {
 		description = description[:maxLen-3] + "..."
 	}
-	
+
 	progress := NewSimpleProgress(description, total)
 	dm.activeDownloads[id] = progress
 	return progress
@@ -204,7 +204,7 @@ func (dm *DisplayManager) StartProgress(id string, total int64, description stri
 func (dm *DisplayManager) UpdateProgress(id string, current int64) {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	
+
 	if progress, exists := dm.activeDownloads[id]; exists {
 		progress.Update(current)
 	}
@@ -214,24 +214,23 @@ func (dm *DisplayManager) UpdateProgress(id string, current int64) {
 func (dm *DisplayManager) FinishProgress(id string) {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	
+
 	if progress, exists := dm.activeDownloads[id]; exists {
 		progress.Finish()
 		delete(dm.activeDownloads, id)
 	}
 }
 
-
 // PrintDownloadSummary prints a summary of downloads
 func (dm *DisplayManager) PrintDownloadSummary(succeeded, failed, total int) {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	
+
 	fmt.Println()
 	fmt.Println(strings.Repeat("─", 50))
 	BoldColor.Println("Download Summary")
 	fmt.Println(strings.Repeat("─", 50))
-	
+
 	if succeeded > 0 {
 		SuccessColor.Printf("%s Succeeded: %d\n", IconSuccess, succeeded)
 	}
@@ -239,7 +238,7 @@ func (dm *DisplayManager) PrintDownloadSummary(succeeded, failed, total int) {
 		ErrorColor.Printf("%s Failed:    %d\n", IconError, failed)
 	}
 	fmt.Printf("  Total:     %d\n", total)
-	
+
 	if failed == 0 {
 		fmt.Println()
 		SuccessColor.Printf("%s All downloads completed successfully!\n", IconSuccess)
@@ -257,7 +256,7 @@ func (dm *DisplayManager) PrintDownloadSummary(succeeded, failed, total int) {
 func (dm *DisplayManager) PrintFileExists(filename string) {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	
+
 	DimColor.Printf("%s File already exists: %s\n", IconSuccess, filename)
 }
 
@@ -265,7 +264,7 @@ func (dm *DisplayManager) PrintFileExists(filename string) {
 func (dm *DisplayManager) PrintSavePath(path string) {
 	dm.mu.Lock()
 	defer dm.mu.Unlock()
-	
+
 	fmt.Printf("%s Saved to: ", IconFolder)
 	InfoColor.Println(path)
 }

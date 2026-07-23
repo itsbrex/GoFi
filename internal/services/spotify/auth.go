@@ -163,12 +163,12 @@ func (s *AuthService) StartAuthentication(ctx context.Context) (*spotify.Client,
 
 	// No valid token, start the authentication flow
 	log.Println("No valid Spotify token found. Starting authentication flow...")
-	
+
 	authURL := s.GetAuthURL()
-	
+
 	fmt.Printf(`GoFi needs permission to access your Spotify account.
 `)
-	
+
 	// Try to open the browser automatically
 	if err := openBrowser(authURL); err != nil {
 		// If automatic opening fails, show the URL for manual copying
@@ -184,7 +184,7 @@ func (s *AuthService) StartAuthentication(ctx context.Context) (*spotify.Client,
 
 `, authURL)
 	}
-	
+
 	fmt.Println("Waiting for authorization...")
 
 	// Start the callback server

@@ -18,7 +18,7 @@ func NewProgressManager() *ProgressManager {
 	return &ProgressManager{
 		container: mpb.New(
 			mpb.WithWidth(64),
-			mpb.WithRefreshRate(100 * time.Millisecond), // 10 FPS
+			mpb.WithRefreshRate(100*time.Millisecond), // 10 FPS
 		),
 	}
 }

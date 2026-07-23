@@ -627,7 +627,7 @@ func downloadTrackImproved(track types.TrackType, downloadPath string, quality i
 	}
 
 	// Execute download
-	_, err = download.DownloadTrack(options)
+	_, err = download.DownloadTrack(context.Background(), options)
 	if err != nil {
 		if bar != nil {
 			ui.AbortBar(bar)

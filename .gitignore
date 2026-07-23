@@ -68,5 +68,12 @@ tasks/
 .roomodes
 .windsurfrules
 
+# Playwright
+/.playwright-cli/
+
+# Default download output
+/Music/
+/Playlist/
+
 # Example/template files
-scripts/example_prd.txt 
+scripts/example_prd.txt

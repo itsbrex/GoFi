@@ -40,7 +40,7 @@ type RadioSearchType struct {
 
 type LiveSearchType struct {
 	SearchTypeCommon
-	Data []interface{} `json:"data"`
+	Data []any `json:"data"`
 }
 
 type ShowSearchType struct {
@@ -61,9 +61,9 @@ type DiscographyType struct {
 
 type SearchType struct {
 	QUERY       string             `json:"QUERY"`
-	FUZZINNESS  bool               `json:"FUZZINNESS"`
-	AUTOCORRECT bool               `json:"AUTOCORRECT"`
-	TOP_RESULT  []interface{}      `json:"TOP_RESULT"`
+	FUZZINNESS  StringOrBool       `json:"FUZZINNESS"`
+	AUTOCORRECT StringOrBool       `json:"AUTOCORRECT"`
+	TOP_RESULT  []any              `json:"TOP_RESULT"`
 	ORDER       []string           `json:"ORDER"`
 	ALBUM       AlbumSearchType    `json:"ALBUM"`
 	ARTIST      ArtistSearchType   `json:"ARTIST"`

@@ -18,21 +18,21 @@ This command will automatically check Chrome, Firefox, Edge, Arc, and Safari (on
 for the Deezer ARL cookie and save it to your environment.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		dm := ui.NewDisplayManager()
-		
+
 		dm.PrintHeader("Deezer Authentication")
-		
+
 		var arl string
 		var err error
-		
+
 		// Always try to get fresh ARL from browser cookies when auth is run
 		dm.PrintInfo("Searching for Deezer ARL cookie in your browsers...")
-		
+
 		existingARL := os.Getenv("DEEZER_ARL")
-		
+
 		arl, err = auth.GetARLFromAnyBrowser()
 		if err != nil {
 			dm.PrintError("Failed to find Deezer ARL cookie: %v", err)
-			
+
 			// If we have an existing ARL and browser extraction failed, offer to keep it
 			if existingARL != "" {
 				fmt.Println()
@@ -76,7 +76,7 @@ for the Deezer ARL cookie and save it to your environment.`,
 				cleanARL += string(r)
 			}
 		}
-		
+
 		// Save to .env file
 		if err := auth.SaveARLToEnv(cleanARL); err != nil {
 			dm.PrintWarning("Failed to save ARL to .env file: %v", err)
@@ -91,13 +91,13 @@ for the Deezer ARL cookie and save it to your environment.`,
 		fmt.Println()
 		dm.PrintSuccess("Successfully authenticated with Deezer!")
 		dm.PrintInfo("You can now download music from Deezer.")
-		
+
 		// Show a preview of the ARL (masked for security)
 		if len(arl) > 20 {
 			// Clean the display - only show printable characters
 			start := ""
 			end := ""
-			
+
 			// Get first 10 printable characters
 			for i, r := range arl {
 				if r >= 32 && r <= 126 {
@@ -110,12 +110,12 @@ for the Deezer ARL cookie and save it to your environment.`,
 					break
 				}
 			}
-			
+
 			// Get last 10 characters (usually clean)
 			if len(arl) >= 10 {
 				end = arl[len(arl)-10:]
 			}
-			
+
 			fmt.Println()
 			dm.PrintInfo("ARL Token: %s...%s", start, end)
 		}

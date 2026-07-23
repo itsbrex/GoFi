@@ -10,18 +10,67 @@ import (
 	"github.com/d-fi/GoFi/api"
 	"github.com/d-fi/GoFi/logger"
 	"github.com/d-fi/GoFi/types"
+	"github.com/d-fi/GoFi/utils"
 )
 
+type CoverMode string
+
+const (
+	CoverModeEmbed CoverMode = "embed"
+	CoverModeFile  CoverMode = "file"
+	CoverModeBoth  CoverMode = "both"
+	CoverModeNone  CoverMode = "none"
+)
+
+type TagOptions struct {
+	CoverSize int
+	CoverMode CoverMode
+	AlbumInfo any
+}
+
+func NormalizeCoverMode(mode CoverMode) CoverMode {
+	normalized := CoverMode(strings.ToLower(strings.TrimSpace(string(mode))))
+	switch normalized {
+	case CoverModeFile, CoverModeBoth, CoverModeNone:
+		return normalized
+	default:
+		return CoverModeEmbed
+	}
+}
+
+func ShouldEmbedCover(mode CoverMode) bool {
+	switch NormalizeCoverMode(mode) {
+	case CoverModeEmbed, CoverModeBoth:
+		return true
+	default:
+		return false
+	}
+}
+
+func ShouldSaveCoverFile(mode CoverMode) bool {
+	switch NormalizeCoverMode(mode) {
+	case CoverModeFile, CoverModeBoth:
+		return true
+	default:
+		return false
+	}
+}
+
 // AddTrackTags adds metadata to the track buffer (MP3 or FLAC) based on track and album information.
-func AddTrackTags(trackBuffer []byte, track types.TrackType, albumCoverSize int) ([]byte, error) {
+func AddTrackTags(trackBuffer []byte, track types.TrackType, options TagOptions) ([]byte, error) {
 	logger.Debug("Starting to add track tags for track: %s", track.SNG_TITLE)
 
-	cover, coverErr := DownloadAlbumCover(track.ALB_PICTURE, albumCoverSize)
-	if coverErr != nil {
-		logger.Debug("Failed to download album cover: %v", coverErr)
-		return nil, coverErr
+	coverMode := NormalizeCoverMode(options.CoverMode)
+	var cover []byte
+	if ShouldEmbedCover(coverMode) {
+		coverData, coverErr := DownloadAlbumCover(track.ALB_PICTURE, options.CoverSize)
+		if coverErr != nil {
+			logger.Debug("Failed to download album cover: %v", coverErr)
+			return nil, coverErr
+		}
+		cover = coverData
+		logger.Debug("Downloaded album cover successfully")
 	}
-	logger.Debug("Downloaded album cover successfully")
 
 	var lyrics types.LyricsType
 	if track.LYRICS_ID > 0 {
@@ -41,6 +90,7 @@ func AddTrackTags(trackBuffer []byte, track types.TrackType, albumCoverSize int)
 		return nil, albumErr
 	}
 	logger.Debug("Fetched album info successfully for album: %s", album.Title)
+	releaseDate := tagReleaseDate(&album, options.AlbumInfo, track)
 
 	if strings.ToLower(track.ART_NAME) == "various" {
 		track.ART_NAME = "Various Artists"
@@ -60,9 +110,19 @@ func AddTrackTags(trackBuffer []byte, track types.TrackType, albumCoverSize int)
 	isFlac := bytes.HasPrefix(trackBuffer, []byte("fLaC"))
 	if isFlac {
 		logger.Debug("Detected FLAC format for track: %s", track.SNG_TITLE)
-		return WriteMetadataFlac(trackBuffer, track, &album, albumCoverSize, cover)
+		return WriteMetadataFlac(trackBuffer, track, &album, releaseDate, options.CoverSize, cover)
 	}
 
 	logger.Debug("Detected MP3 format for track: %s", track.SNG_TITLE)
-	return WriteMetadataMp3(trackBuffer, track, &album, cover)
+	return WriteMetadataMp3(trackBuffer, track, &album, releaseDate, cover)
+}
+
+func tagReleaseDate(album *types.AlbumTypePublicApi, albumInfo any, track types.TrackType) string {
+	albumMap := utils.StructMap(albumInfo)
+	if album != nil {
+		if _, ok := albumMap["release_date"]; !ok && album.ReleaseDate != "" {
+			albumMap["release_date"] = album.ReleaseDate
+		}
+	}
+	return utils.BestReleaseDate(albumMap, utils.StructMap(track))
 }

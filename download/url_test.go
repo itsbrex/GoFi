@@ -1,6 +1,8 @@
 package download
 
 import (
+	"context"
+	"os"
 	"strconv"
 	"testing"
 
@@ -14,42 +16,68 @@ const (
 	SNG_ID = "3135556" // Harder, Better, Faster, Stronger by Daft Punk
 )
 
-var testingEnabled bool
+var hasDeezerARL bool
 
-func init() {
-	// Initialize the Deezer API for all tests
+func TestMain(m *testing.M) {
 	// Try to get ARL from various sources (env, browser cookies, etc.)
 	arl, err := auth.GetARLToken()
-	if err != nil {
-		// Skip tests if no ARL is available from any source
-		testingEnabled = false
-		return
+	if err != nil || arl == "" {
+		os.Exit(m.Run())
 	}
-	
-	// Try to initialize the API and validate the token
-	_, err = request.InitDeezerAPI(arl)
-	if err != nil {
-		// ARL found but invalid - skip tests
-		testingEnabled = false
-		return
+
+	// ARL found but possibly invalid - only enable if it initializes.
+	if _, err := request.InitDeezerAPI(arl); err != nil {
+		os.Exit(m.Run())
 	}
-	
-	// Try to authenticate and check permissions
-	user, err := DzAuthenticate()
+
+	// Confirm the token actually grants streaming permissions.
+	user, err := DzAuthenticate(context.Background())
 	if err != nil || (!user.CanStreamLossless && !user.CanStreamHQ) {
-		// Token doesn't have proper streaming permissions
-		testingEnabled = false
-		return
+		os.Exit(m.Run())
 	}
-	
-	testingEnabled = true
+
+	hasDeezerARL = true
+	os.Exit(m.Run())
+}
+
+func requireDeezerARL(t *testing.T) {
+	t.Helper()
+	if !hasDeezerARL {
+		t.Skip("DEEZER_ARL is required")
+	}
+}
+
+func TestParseDeezerUserDataAllowsNullCapabilityFields(t *testing.T) {
+	user, err := parseDeezerUserData([]byte(`{
+		"results": {
+			"COUNTRY": "US",
+			"USER": {
+				"OPTIONS": {
+					"license_token": "token",
+					"web_lossless": null,
+					"mobile_loseless": true,
+					"web_hq": null,
+					"mobile_hq": false
+				}
+			}
+		}
+	}`))
+	assert.NoError(t, err)
+	assert.Equal(t, "token", user.LicenseToken)
+	assert.True(t, user.CanStreamLossless)
+	assert.False(t, user.CanStreamHQ)
+	assert.Equal(t, "US", user.Country)
+}
+
+func TestParseDeezerUserDataRequiresLicenseToken(t *testing.T) {
+	_, err := parseDeezerUserData([]byte(`{"results":{"USER":{"OPTIONS":{}}}}`))
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "missing license token")
 }
 
 func TestDzAuthenticate(t *testing.T) {
-	if !testingEnabled {
-		t.Skip("Skipping test: No valid ARL token available")
-	}
-	user, err := DzAuthenticate()
+	requireDeezerARL(t)
+	user, err := DzAuthenticate(context.Background())
 	assert.NoError(t, err)
 	assert.NotNil(t, user)
 	assert.NotEmpty(t, user.LicenseToken)
@@ -58,18 +86,14 @@ func TestDzAuthenticate(t *testing.T) {
 }
 
 func TestGetTrackUrlFromServer(t *testing.T) {
-	if !testingEnabled {
-		t.Skip("Skipping test: No valid ARL token available")
-	}
+	requireDeezerARL(t)
 	trackToken := "example_track_token"
-	_, err := GetTrackUrlFromServer(trackToken, "MP3_320")
+	_, err := GetTrackUrlFromServer(context.Background(), trackToken, "MP3_320")
 	assert.Error(t, err, "Expected error due to incorrect token or unavailable track")
 }
 
 func TestGetTrackDownloadUrl(t *testing.T) {
-	if !testingEnabled {
-		t.Skip("Skipping test: No valid ARL token available")
-	}
+	requireDeezerARL(t)
 	track, err := api.GetTrackInfo(SNG_ID)
 	assert.NoError(t, err, "Failed to fetch track information")
 	assert.NotEmpty(t, track.MD5_ORIGIN, "MD5 origin should not be empty")
@@ -80,7 +104,7 @@ func TestGetTrackDownloadUrl(t *testing.T) {
 
 	for _, quality := range qualities {
 		t.Run("Quality "+strconv.Itoa(quality), func(t *testing.T) {
-			trackURL, err := GetTrackDownloadUrl(track, quality)
+			trackURL, err := GetTrackDownloadUrl(context.Background(), track, quality)
 			if err == nil {
 				assert.NotNil(t, trackURL)
 				assert.NotEmpty(t, trackURL.TrackUrl)
@@ -94,14 +118,12 @@ func TestGetTrackDownloadUrl(t *testing.T) {
 }
 
 func TestGetTrackDownloadUrlWithInvalidQuality(t *testing.T) {
-	if !testingEnabled {
-		t.Skip("Skipping test: No valid ARL token available")
-	}
+	requireDeezerARL(t)
 	track, err := api.GetTrackInfo(SNG_ID)
 	assert.NoError(t, err, "Failed to fetch track information")
 	assert.NotEmpty(t, track.TRACK_TOKEN, "Track token should not be empty")
 
-	_, err = GetTrackDownloadUrl(track, 999) // Testing an invalid quality
+	_, err = GetTrackDownloadUrl(context.Background(), track, 999) // Testing an invalid quality
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown quality 999")
 }

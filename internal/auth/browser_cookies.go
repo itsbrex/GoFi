@@ -192,7 +192,7 @@ func (cr *CookieReader) getChromiumCookie(dbPath, name, domain string) (string, 
 
 	var encryptedValue []byte
 	var value string
-	
+
 	// Try to get both encrypted_value and value columns
 	query := `SELECT encrypted_value, value FROM cookies WHERE host_key = ? AND name = ?`
 	err = db.QueryRow(query, domain, name).Scan(&encryptedValue, &value)
@@ -216,7 +216,7 @@ func (cr *CookieReader) getChromiumCookie(dbPath, name, domain string) (string, 
 	if len(encryptedValue) == 0 {
 		return "", fmt.Errorf("cookie has no value")
 	}
-	
+
 	// Debug: check if it's already decrypted (doesn't start with v10/v11)
 	if len(encryptedValue) > 3 {
 		prefix := string(encryptedValue[:3])
@@ -240,7 +240,7 @@ func (cr *CookieReader) getChromiumCookie(dbPath, name, domain string) (string, 
 			}
 		}
 	}
-	
+
 	decrypted, err := cr.decryptChromiumCookie(encryptedValue)
 	if err != nil {
 		return "", fmt.Errorf("failed to decrypt cookie: %w", err)
@@ -300,7 +300,7 @@ func (cr *CookieReader) decryptChromiumCookieMac(encrypted []byte) (string, erro
 func (cr *CookieReader) getChromePassword() (string, error) {
 	// Different browsers use different keychain entries
 	var service, account string
-	
+
 	switch cr.browser {
 	case Chrome:
 		service = "Chrome Safe Storage"
@@ -315,7 +315,7 @@ func (cr *CookieReader) getChromePassword() (string, error) {
 		service = "Chrome Safe Storage"
 		account = "Chrome"
 	}
-	
+
 	// Use the security command to get the password from keychain
 	cmd := exec.Command("security", "find-generic-password", "-w", "-s", service, "-a", account)
 	output, err := cmd.Output()
@@ -387,7 +387,7 @@ func (cr *CookieReader) decryptAES128CBC(key, encrypted []byte) (string, error) 
 
 	// Clean the result - remove any non-printable characters at the beginning
 	result := string(decrypted)
-	
+
 	// Find the start of what looks like a valid ARL token
 	// ARL tokens typically start with alphanumeric characters and are long
 	startIdx := -1
@@ -399,8 +399,8 @@ func (cr *CookieReader) decryptAES128CBC(key, encrypted []byte) (string, error) 
 			validCount := 0
 			for j := i; j < len(result) && j < i+20; j++ {
 				char := result[j]
-				if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || 
-				   char == '_' || char == '-' || char == '.' || char == '~' || char == '+' || char == '/' || char == '=' {
+				if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') ||
+					char == '_' || char == '-' || char == '.' || char == '~' || char == '+' || char == '/' || char == '=' {
 					validCount++
 				} else {
 					validSequence = false
@@ -414,11 +414,11 @@ func (cr *CookieReader) decryptAES128CBC(key, encrypted []byte) (string, error) 
 			}
 		}
 	}
-	
+
 	if startIdx >= 0 {
 		result = result[startIdx:]
 	}
-	
+
 	// Additional check: if result starts with a single non-hex character followed by a long hex string,
 	// it might be a decryption artifact - remove the first character
 	if len(result) > 100 && len(result) > 1 {
@@ -432,9 +432,9 @@ func (cr *CookieReader) decryptAES128CBC(key, encrypted []byte) (string, error) 
 			for _, char := range possibleARL {
 				if (char >= 'a' && char <= 'f') || (char >= '0' && char <= '9') {
 					hexCount++
-				} else if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || 
-				            char == '_' || char == '-' || char == '.' || char == '~' || 
-				            char == '+' || char == '/' || char == '=') {
+				} else if !((char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') ||
+					char == '_' || char == '-' || char == '.' || char == '~' ||
+					char == '+' || char == '/' || char == '=') {
 					isValidARL = false
 					break
 				}
@@ -445,7 +445,7 @@ func (cr *CookieReader) decryptAES128CBC(key, encrypted []byte) (string, error) 
 			}
 		}
 	}
-	
+
 	return strings.TrimSpace(result), nil
 }
 
@@ -507,14 +507,14 @@ func GetARLFromAnyBrowser() (string, error) {
 
 	var lastErr error
 	var checkedBrowsers []string
-	
+
 	for _, browser := range browsers {
 		reader := NewCookieReader(browser)
 		arl, err := reader.GetDeezerARL()
 		if err == nil && arl != "" {
 			return arl, nil
 		}
-		
+
 		// Skip "not implemented" errors
 		if err != nil && !strings.Contains(err.Error(), "not implemented") {
 			// For Arc, store more specific error info
@@ -540,7 +540,7 @@ func GetARLFromAnyBrowser() (string, error) {
 // ParseCookieString parses a cookie string and extracts the ARL value
 func ParseCookieString(cookieString string) (string, error) {
 	originalString := strings.TrimSpace(cookieString)
-	
+
 	// Try to handle base64 encoded cookies
 	if decoded, err := base64.StdEncoding.DecodeString(originalString); err == nil && len(decoded) > 0 {
 		// Only use decoded if it contains valid text

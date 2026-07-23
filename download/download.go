@@ -1,6 +1,7 @@
 package download
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -17,7 +18,7 @@ import (
 )
 
 // DownloadTrack downloads a track, adds metadata, and saves it to the specified directory.
-func DownloadTrack(options DownloadTrackOptions) (string, error) {
+func DownloadTrack(ctx context.Context, options DownloadTrackOptions) (string, error) {
 	logger.Debug("Starting download for track ID: %s with quality: %d", options.SngID, options.Quality)
 	track, err := api.GetTrackInfo(options.SngID)
 	if err != nil {
@@ -33,14 +34,10 @@ func DownloadTrack(options DownloadTrackOptions) (string, error) {
 		ext = "mp3"
 	}
 
-	// Create directory for saving the track if it does not exist
-	if err := os.MkdirAll(options.SaveToDir, 0755); err != nil {
-		logger.Debug("Failed to create directory: %v", err)
-		return "", fmt.Errorf("failed to create directory: %v", err)
-	}
-	logger.Debug("Directory created or already exists: %s", options.SaveToDir)
+	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
-	trackData, err := GetTrackDownloadUrl(track, options.Quality)
+	trackData, err := GetTrackDownloadUrl(ctx, track, options.Quality)
 	if err != nil || trackData == nil {
 		logger.Debug("Failed to retrieve downloadable URL: %v", err)
 		return "", fmt.Errorf("failed to retrieve downloadable URL: %v", err)
@@ -48,8 +45,11 @@ func DownloadTrack(options DownloadTrackOptions) (string, error) {
 	logger.Debug("Download URL retrieved: %s", trackData.TrackUrl)
 
 	var savedPath string
-	if options.Filename != "" {
-		// Use the provided filename if available
+	if options.SavePath != "" {
+		// Use the exact path provided by the caller.
+		savedPath = options.SavePath
+	} else if options.Filename != "" {
+		// Use the provided filename within the save directory.
 		savedPath = filepath.Join(options.SaveToDir, fmt.Sprintf("%s.%s", options.Filename, ext))
 	} else {
 		// Fall back to the default naming scheme
@@ -58,8 +58,15 @@ func DownloadTrack(options DownloadTrackOptions) (string, error) {
 	}
 	logger.Debug("Saving track as: %s", savedPath)
 
-	// Check if the file exists with this name or with the ID-based name
-	// Use Lstat to detect files, symlinks, and aliases without following symlinks
+	// Create the destination directory (supports nested SavePath and disc layouts).
+	if err := os.MkdirAll(filepath.Dir(savedPath), 0755); err != nil {
+		logger.Debug("Failed to create directory: %v", err)
+		return "", fmt.Errorf("failed to create directory: %v", err)
+	}
+
+	// Check if the file exists with this name or with the ID-based name.
+	// Use Lstat to detect files, symlinks, and aliases without following symlinks,
+	// and skip the download without renaming or touching timestamps.
 	if _, err := os.Lstat(savedPath); err == nil {
 		// File exists with the specified name (regular file, symlink, or alias)
 		logger.Debug("File already exists (skipping download): %s", savedPath)
@@ -92,26 +99,9 @@ func DownloadTrack(options DownloadTrackOptions) (string, error) {
 		}
 	}()
 
-	// Set up signal handling for interrupt (Ctrl+C) to clean up the file
-	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
-
-	// Channel to notify when download is complete
-	done := make(chan struct{})
-
-	go func() {
-		select {
-		case <-interrupt:
-			logger.Debug("Interrupt signal received, removing incomplete file: %s", savedPath)
-			_ = os.Remove(savedPath)
-			os.Exit(1)
-		case <-done:
-			// Download completed normally
-		}
-	}()
-
 	// Download the track from the generated URL with progress tracking
 	resp, err := request.Client.R().
+		SetContext(ctx).
 		SetDoNotParseResponse(true). // Do not parse the response to handle the stream manually
 		Get(trackData.TrackUrl)
 
@@ -153,14 +143,16 @@ func DownloadTrack(options DownloadTrackOptions) (string, error) {
 		}
 
 		if readErr != nil {
+			if ctx.Err() != nil {
+				logger.Debug("Download interrupted, removing incomplete file: %s", savedPath)
+				_ = os.Remove(savedPath)
+				return "", fmt.Errorf("download interrupted: %w", ctx.Err())
+			}
 			logger.Debug("Failed during download: %v", readErr)
 			_ = os.Remove(savedPath)
 			return "", fmt.Errorf("failed during download: %v", readErr)
 		}
 	}
-
-	// Notify that the download is complete
-	close(done)
 
 	logger.Debug("Track downloaded successfully")
 
@@ -178,7 +170,10 @@ func DownloadTrack(options DownloadTrackOptions) (string, error) {
 	}
 
 	// Add metadata to the downloaded track
-	trackWithMetadata, err := metadata.AddTrackTags(trackBody, track, options.CoverSize)
+	trackWithMetadata, err := metadata.AddTrackTags(trackBody, track, metadata.TagOptions{
+		CoverSize: options.CoverSize,
+		CoverMode: metadata.CoverMode(options.CoverMode),
+	})
 	if err != nil {
 		logger.Debug("Failed to add metadata: %v", err)
 		return "", fmt.Errorf("failed to add metadata: %v", err)
@@ -189,6 +184,12 @@ func DownloadTrack(options DownloadTrackOptions) (string, error) {
 	if err := os.WriteFile(savedPath, trackWithMetadata, 0644); err != nil {
 		logger.Debug("Failed to save track with metadata: %v", err)
 		return "", fmt.Errorf("failed to save track with metadata: %v", err)
+	}
+	if metadata.ShouldSaveCoverFile(metadata.CoverMode(options.CoverMode)) {
+		if _, err := metadata.SaveAlbumCoverFile(filepath.Dir(savedPath), options.CoverName, track.ALB_PICTURE, options.CoverSize); err != nil {
+			logger.Debug("Failed to save album cover file: %v", err)
+			return "", fmt.Errorf("failed to save album cover file: %v", err)
+		}
 	}
 	logger.Debug("Track saved with metadata to: %s", savedPath)
 

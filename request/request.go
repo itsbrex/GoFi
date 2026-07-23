@@ -3,7 +3,10 @@ package request
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/d-fi/GoFi/logger"
@@ -17,6 +20,7 @@ const (
 )
 
 var cache = expirable.NewLRU[string, []byte](cacheSize, nil, cacheTTL)
+var publicAPIBaseURL = "https://api.deezer.com"
 
 func checkResponse(data []byte) (json.RawMessage, error) {
 	logger.Debug("Checking API response")
@@ -44,20 +48,20 @@ func checkResponse(data []byte) (json.RawMessage, error) {
 		}
 		logger.Debug("API error: %s", errVal)
 		return nil, fmt.Errorf("API error: %s", errVal)
-	case map[string]interface{}:
-		errorMessage := ""
+	case map[string]any:
+		var errorMessage strings.Builder
 		for key, value := range errVal {
-			errorMessage += fmt.Sprintf("%s: %v, ", key, value)
+			errorMessage.WriteString(fmt.Sprintf("%s: %v, ", key, value))
 		}
-		logger.Debug("API error: %v", errorMessage)
-		return nil, fmt.Errorf("API error: %v", errorMessage)
+		logger.Debug("API error: %v", errorMessage.String())
+		return nil, fmt.Errorf("API error: %v", errorMessage.String())
 	}
 
 	logger.Debug("API response checked successfully")
 	return apiResponse.Results, nil
 }
 
-func Request(body map[string]interface{}, method string) ([]byte, error) {
+func Request(body map[string]any, method string) ([]byte, error) {
 	cacheKey := method + ":" + fmt.Sprintf("%v", body)
 	if cachedData, ok := cache.Get(cacheKey); ok && len(cachedData) > 0 {
 		logger.Debug("Cache hit for request with method: %s", method)
@@ -90,8 +94,15 @@ func Request(body map[string]interface{}, method string) ([]byte, error) {
 	return results, nil
 }
 
-func RequestGet(method string, params map[string]interface{}) ([]byte, error) {
-	cacheKey := method + ":get_request"
+func RequestGet(method string, params map[string]any, key ...string) ([]byte, error) {
+	queryParams := utils.ConvertToQueryParams(params)
+	cacheKeyPart := "get_request"
+	if len(key) > 0 && key[0] != "" {
+		cacheKeyPart = key[0]
+	} else if encodedParams := encodeQueryParams(queryParams); encodedParams != "" {
+		cacheKeyPart = encodedParams
+	}
+	cacheKey := method + ":" + cacheKeyPart
 	if cachedData, ok := cache.Get(cacheKey); ok && len(cachedData) > 0 {
 		logger.Debug("Cache hit for GET request with method: %s", method)
 		return cachedData, nil
@@ -100,7 +111,6 @@ func RequestGet(method string, params map[string]interface{}) ([]byte, error) {
 	// Ensure ARL cookie is set
 	ensureAuth()
 
-	queryParams := utils.ConvertToQueryParams(params)
 	logger.Debug("Making GET request with method: %s", method)
 	resp, err := Client.R().
 		SetQueryParams(queryParams).
@@ -124,6 +134,14 @@ func RequestGet(method string, params map[string]interface{}) ([]byte, error) {
 	return results, nil
 }
 
+func encodeQueryParams(params map[string]string) string {
+	values := url.Values{}
+	for key, value := range params {
+		values.Set(key, value)
+	}
+	return values.Encode()
+}
+
 func RequestPublicApi(slug string) ([]byte, error) {
 	if cachedData, ok := cache.Get(slug); ok && len(cachedData) > 0 {
 		logger.Debug("Cache hit for public API request: %s", slug)
@@ -134,20 +152,23 @@ func RequestPublicApi(slug string) ([]byte, error) {
 	ensureAuth()
 
 	logger.Debug("Making public API request: %s", slug)
-	resp, err := Client.R().Get("https://api.deezer.com" + slug)
+	resp, err := Client.R().Get(publicAPIBaseURL + slug)
 	if err != nil {
 		logger.Debug("Failed to make public API request: %v", err)
 		return nil, err
 	}
 
 	results := resp.Body()
-
 	var errorResponse PublicAPIResponseError
 	if err := json.Unmarshal(results, &errorResponse); err == nil {
 		if errorResponse.Error.Type != "" {
 			logger.Debug("API error: %s - %s (Code: %d)", errorResponse.Error.Type, errorResponse.Error.Message, errorResponse.Error.Code)
 			return nil, fmt.Errorf("API error: %s - %s (Code: %d)", errorResponse.Error.Type, errorResponse.Error.Message, errorResponse.Error.Code)
 		}
+	}
+	if resp.StatusCode() < http.StatusOK || resp.StatusCode() >= http.StatusMultipleChoices {
+		logger.Debug("Public API request failed: %s", resp.Status())
+		return nil, fmt.Errorf("public API request failed: %s", resp.Status())
 	}
 
 	cache.Add(slug, results)

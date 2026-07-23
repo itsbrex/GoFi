@@ -31,16 +31,16 @@ func NewSimpleProgress(description string, total int64) *SimpleProgress {
 func (sp *SimpleProgress) Update(current int64) {
 	sp.mu.Lock()
 	defer sp.mu.Unlock()
-	
+
 	sp.current = current
 	now := time.Now()
-	
+
 	// Only update display every 100ms to avoid flickering
 	if now.Sub(sp.lastUpdate) < 100*time.Millisecond && sp.current < sp.total {
 		return
 	}
 	sp.lastUpdate = now
-	
+
 	sp.render()
 }
 
@@ -48,7 +48,7 @@ func (sp *SimpleProgress) Update(current int64) {
 func (sp *SimpleProgress) Finish() {
 	sp.mu.Lock()
 	defer sp.mu.Unlock()
-	
+
 	sp.current = sp.total
 	sp.render()
 	fmt.Print(" ")
@@ -66,24 +66,24 @@ func (sp *SimpleProgress) render() {
 		fmt.Printf("\r\033[K%s %s %s", IconDownload, sp.description, spinner[idx])
 		return
 	}
-	
+
 	// Calculate progress percentage
 	percent := int(float64(sp.current) * 100 / float64(sp.total))
 	if percent > 100 {
 		percent = 100
 	}
-	
+
 	// Format sizes
 	currentMB := float64(sp.current) / 1024 / 1024
 	totalMB := float64(sp.total) / 1024 / 1024
-	
+
 	// Calculate speed
 	elapsed := time.Since(sp.startTime).Seconds()
 	if elapsed < 0.1 {
 		elapsed = 0.1
 	}
 	speedMBps := currentMB / elapsed
-	
+
 	// Calculate ETA
 	var eta string
 	if speedMBps > 0 && sp.current < sp.total {
@@ -93,20 +93,20 @@ func (sp *SimpleProgress) render() {
 			eta = fmt.Sprintf(" - %ds remaining", remainingSec)
 		}
 	}
-	
+
 	// Build progress bar
 	barWidth := 20
 	filled := int(float64(barWidth) * float64(percent) / 100)
 	if filled > barWidth {
 		filled = barWidth
 	}
-	
+
 	bar := strings.Repeat("█", filled) + strings.Repeat("░", barWidth-filled)
-	
+
 	// Clear the entire line first, then print progress
 	// \r moves cursor to beginning, \033[K clears from cursor to end of line
-	fmt.Printf("\r\033[K%s %s [%s] %d%% (%.1f/%.1f MB, %.1f MB/s)%s", 
-		IconDownload, 
+	fmt.Printf("\r\033[K%s %s [%s] %d%% (%.1f/%.1f MB, %.1f MB/s)%s",
+		IconDownload,
 		sp.description,
 		bar,
 		percent,

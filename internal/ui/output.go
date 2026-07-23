@@ -19,25 +19,25 @@ var (
 	// Success messages (green)
 	successColor = color.New(color.FgGreen).SprintfFunc()
 	successBold  = color.New(color.FgGreen, color.Bold).SprintfFunc()
-	
+
 	// Error messages (red)
 	errorColor = color.New(color.FgRed).SprintfFunc()
 	errorBold  = color.New(color.FgRed, color.Bold).SprintfFunc()
-	
+
 	// Warning messages (yellow)
 	warningColor = color.New(color.FgYellow).SprintfFunc()
 	warningBold  = color.New(color.FgYellow, color.Bold).SprintfFunc()
-	
+
 	// Info messages (blue)
 	infoColor = color.New(color.FgBlue).SprintfFunc()
 	infoBold  = color.New(color.FgBlue, color.Bold).SprintfFunc()
-	
+
 	// Header messages (cyan + bold)
 	headerColor = color.New(color.FgCyan, color.Bold).SprintfFunc()
-	
+
 	// Highlight text (magenta)
 	highlightColor = color.New(color.FgMagenta).SprintfFunc()
-	
+
 	// Dim text (gray)
 	dimColor = color.New(color.Faint).SprintfFunc()
 )
@@ -136,8 +136,8 @@ func DimString(format string, a ...interface{}) string {
 
 // Additional icons for visual feedback
 const (
-	IconArrow   = "→"
-	IconDot     = "•"
+	IconArrow = "→"
+	IconDot   = "•"
 )
 
 // PrintWithIcon prints a message with an icon

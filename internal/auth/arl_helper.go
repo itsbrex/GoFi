@@ -53,9 +53,9 @@ func ValidateARLToken(arl string) error {
 			validChars++
 		}
 	}
-	
+
 	// If at least 90% of characters are valid, accept it
-	if float64(validChars) / float64(len(arl)) < 0.9 {
+	if float64(validChars)/float64(len(arl)) < 0.9 {
 		return fmt.Errorf("ARL token contains too many invalid characters")
 	}
 
@@ -77,7 +77,7 @@ func isValidARLChar(r rune) bool {
 // SaveARLToEnv saves the ARL token to a .env file
 func SaveARLToEnv(arl string) error {
 	envPath := ".env"
-	
+
 	// Clean the ARL token - remove any control characters
 	cleanARL := ""
 	for _, r := range arl {
@@ -85,7 +85,7 @@ func SaveARLToEnv(arl string) error {
 			cleanARL += string(r)
 		}
 	}
-	
+
 	// Read existing .env file if it exists
 	content := ""
 	if data, err := os.ReadFile(envPath); err == nil {

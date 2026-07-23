@@ -13,7 +13,7 @@ func TestColorOutput(t *testing.T) {
 	// Test with colors enabled
 	t.Run("Colors Enabled", func(t *testing.T) {
 		color.NoColor = false
-		
+
 		tests := []struct {
 			name     string
 			function func()
@@ -55,7 +55,7 @@ func TestColorOutput(t *testing.T) {
 				contains: "\033[36;1m", // Cyan + Bold ANSI code
 			},
 		}
-		
+
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 				output := captureOutput(tt.function)
@@ -65,11 +65,11 @@ func TestColorOutput(t *testing.T) {
 			})
 		}
 	})
-	
+
 	// Test with colors disabled
 	t.Run("Colors Disabled", func(t *testing.T) {
 		color.NoColor = true
-		
+
 		tests := []struct {
 			name         string
 			function     func()
@@ -93,7 +93,7 @@ func TestColorOutput(t *testing.T) {
 				notContains:  "\033[",
 			},
 		}
-		
+
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
 				output := captureOutput(tt.function)
@@ -105,7 +105,7 @@ func TestColorOutput(t *testing.T) {
 				}
 			})
 		}
-		
+
 		// Reset color setting
 		color.NoColor = false
 	})
@@ -113,7 +113,7 @@ func TestColorOutput(t *testing.T) {
 
 func TestStringFunctions(t *testing.T) {
 	color.NoColor = false
-	
+
 	tests := []struct {
 		name     string
 		function func() string
@@ -141,7 +141,7 @@ func TestStringFunctions(t *testing.T) {
 			contains: "Test info",
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := tt.function()
@@ -187,7 +187,7 @@ func TestIconFunctions(t *testing.T) {
 			contains: IconInfo,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			output := captureOutput(tt.function)
@@ -203,20 +203,20 @@ func captureOutput(f func()) string {
 	// Save current stdout and stderr
 	oldStdout := os.Stdout
 	oldStderr := os.Stderr
-	
+
 	// Create pipes
 	r, w, _ := os.Pipe()
 	os.Stdout = w
 	os.Stderr = w
-	
+
 	// Run the function
 	f()
-	
+
 	// Close writer and restore stdout/stderr
 	w.Close()
 	os.Stdout = oldStdout
 	os.Stderr = oldStderr
-	
+
 	// Read output
 	out, _ := io.ReadAll(r)
 	return string(out)

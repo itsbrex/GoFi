@@ -21,7 +21,7 @@ import (
 // downloadHandler processes downloads based on URL type
 func downloadHandler(url string, downloadPath string, quality int) error {
 	ctx := context.Background()
-	
+
 	// Parse the URL to identify its type
 	parsedInfo, err := internalutils.ParseMusicURL(url)
 	if err != nil {
@@ -63,13 +63,13 @@ func handleSpotifyDownload(ctx context.Context, parsedInfo *internalutils.Parsed
 	switch parsedInfo.Type {
 	case internalutils.SpotifyTrack:
 		return handleSpotifyTrack(ctx, spotifyService, parsedInfo.ID, downloadPath, quality)
-	
+
 	case internalutils.SpotifyAlbum:
 		return handleSpotifyAlbum(ctx, spotifyService, parsedInfo.ID, downloadPath, quality)
-	
+
 	case internalutils.SpotifyPlaylist:
 		return handleSpotifyPlaylist(ctx, spotifyService, parsedInfo.ID, downloadPath, quality)
-	
+
 	default:
 		return fmt.Errorf("unsupported Spotify content type: %s", parsedInfo.Type)
 	}
@@ -81,13 +81,13 @@ func handleDeezerDownload(ctx context.Context, parsedInfo *internalutils.ParsedU
 	switch parsedInfo.Type {
 	case internalutils.DeezerTrack:
 		return handleDeezerTrack(parsedInfo.ID, downloadPath, quality)
-	
+
 	case internalutils.DeezerAlbum:
 		return handleDeezerAlbum(parsedInfo.ID, downloadPath, quality)
-	
+
 	case internalutils.DeezerPlaylist:
 		return handleDeezerPlaylist(parsedInfo.ID, downloadPath, quality)
-	
+
 	default:
 		return fmt.Errorf("unsupported Deezer content type: %s", parsedInfo.Type)
 	}
@@ -124,7 +124,7 @@ func handleDeezerTrack(id string, downloadPath string, quality int) error {
 
 	// Create a folder with the artist name
 	artistFolder := filepath.Join(downloadPath, track.ART_NAME)
-	
+
 	// Custom filename for the track: Artist - Title
 	customFilename := fmt.Sprintf("%s - %s", track.ART_NAME, track.SNG_TITLE)
 
@@ -178,10 +178,10 @@ func handleDeezerAlbum(id string, downloadPath string, quality int) error {
 			lastError = err
 			continue
 		}
-		
+
 		// Custom filename for the track: Artist - Title
 		customFilename := fmt.Sprintf("%s - %s", trackInfo.ART_NAME, trackInfo.SNG_TITLE)
-		
+
 		err = downloadTrack(trackInfo, albumPath, quality, customFilename)
 		if err != nil {
 			ui.ErrorWithIcon("Error downloading track %s: %v", track.SNG_TITLE, err)
@@ -221,7 +221,7 @@ func handleDeezerPlaylist(id string, downloadPath string, quality int) error {
 	failed := 0
 
 	for i, track := range tracks.Data {
-		fmt.Print(ui.InfoString("[%d/%d] Processing: %s by %s... ", 
+		fmt.Print(ui.InfoString("[%d/%d] Processing: %s by %s... ",
 			i+1, total, track.SNG_TITLE, track.ART_NAME))
 
 		trackInfo, err := api.GetTrackInfo(fmt.Sprint(track.SNG_ID))
@@ -231,10 +231,10 @@ func handleDeezerPlaylist(id string, downloadPath string, quality int) error {
 			failed++
 			continue
 		}
-		
+
 		// Custom filename for the track: Artist - Title
 		customFilename := fmt.Sprintf("%s - %s", trackInfo.ART_NAME, trackInfo.SNG_TITLE)
-		
+
 		err = downloadTrack(trackInfo, playlistPath, quality, customFilename)
 		if err != nil {
 			fmt.Println(ui.ErrorString("✗"))
@@ -250,7 +250,7 @@ func handleDeezerPlaylist(id string, downloadPath string, quality int) error {
 	fmt.Println(strings.Repeat("─", 50))
 	ui.InfoBold("Download Summary")
 	fmt.Println(strings.Repeat("─", 50))
-	
+
 	if succeeded > 0 {
 		ui.SuccessWithIcon("Succeeded: %d", succeeded)
 	}
@@ -304,7 +304,7 @@ func handleSpotifyTrack(ctx context.Context, spotifyService *spotify.SpotifyServ
 
 	// Create a folder with the artist name
 	artistFolder := filepath.Join(downloadPath, deezerTrack.ART_NAME)
-	
+
 	// Custom filename for the track: Artist - Title
 	customFilename := fmt.Sprintf("%s - %s", deezerTrack.ART_NAME, deezerTrack.SNG_TITLE)
 
@@ -321,9 +321,9 @@ func handleSpotifyAlbum(ctx context.Context, spotifyService *spotify.SpotifyServ
 	}
 	fmt.Println(ui.SuccessString("✓"))
 
-	ui.SuccessWithIcon("Found album: %s by %s (%d tracks)", 
-		album.Title, 
-		joinArtistNames(album.Artists), 
+	ui.SuccessWithIcon("Found album: %s by %s (%d tracks)",
+		album.Title,
+		joinArtistNames(album.Artists),
 		len(tracks))
 
 	// Find matching album on Deezer
@@ -373,10 +373,10 @@ func handleSpotifyAlbum(ctx context.Context, spotifyService *spotify.SpotifyServ
 			lastError = err
 			continue
 		}
-		
+
 		// Custom filename for the track: Artist - Title
 		customFilename := fmt.Sprintf("%s - %s", trackInfo.ART_NAME, trackInfo.SNG_TITLE)
-		
+
 		err = downloadTrack(trackInfo, albumPath, quality, customFilename)
 		if err != nil {
 			ui.ErrorWithIcon("Error downloading track %s: %v", track.SNG_TITLE, err)
@@ -399,9 +399,9 @@ func handleSpotifyPlaylist(ctx context.Context, spotifyService *spotify.SpotifyS
 	}
 	fmt.Println(ui.SuccessString("✓"))
 
-	ui.SuccessWithIcon("Found playlist: %s by %s (%d tracks)", 
-		playlist.Title, 
-		playlist.OwnerName, 
+	ui.SuccessWithIcon("Found playlist: %s by %s (%d tracks)",
+		playlist.Title,
+		playlist.OwnerName,
 		len(tracks))
 
 	// Create a folder for the playlist using just the playlist name
@@ -424,7 +424,7 @@ func downloadSpotifyTracksIndividually(tracks []models.Track, downloadPath strin
 			time.Sleep(1 * time.Second)
 		}
 
-		fmt.Print(ui.InfoString("[%d/%d] Processing: %s by %s... ", 
+		fmt.Print(ui.InfoString("[%d/%d] Processing: %s by %s... ",
 			i+1, total, track.Title, joinArtistNames(track.Artists)))
 
 		deezerTrack, err := api.SearchTrackOnDeezer(&track)
@@ -454,7 +454,7 @@ func downloadSpotifyTracksIndividually(tracks []models.Track, downloadPath strin
 	fmt.Println(strings.Repeat("─", 50))
 	ui.InfoBold("Download Summary")
 	fmt.Println(strings.Repeat("─", 50))
-	
+
 	if succeeded > 0 {
 		ui.SuccessWithIcon("Succeeded: %d", succeeded)
 	}
@@ -501,7 +501,7 @@ func downloadTrack(track types.TrackType, downloadPath string, quality int, cust
 	}
 
 	// Execute download
-	filePath, err := download.DownloadTrack(options)
+	filePath, err := download.DownloadTrack(context.Background(), options)
 	if err != nil {
 		return err
 	}

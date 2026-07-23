@@ -40,11 +40,11 @@ type Artist struct {
 }
 
 type Album struct {
-	ID          string   // Spotify ID or your internal ID
+	ID          string // Spotify ID or your internal ID
 	Title       string
 	Artists     []Artist // List of primary artists
 	Images      []Image
-	ReleaseDate string   // YYYY-MM-DD or YYYY
+	ReleaseDate string // YYYY-MM-DD or YYYY
 	Label       string
 	TotalTracks int
 	Source      SourceType
@@ -56,7 +56,7 @@ type Album struct {
 }
 
 type Track struct {
-	ID          string   // Spotify ID or your internal ID
+	ID          string // Spotify ID or your internal ID
 	Title       string
 	Album       string   // Album Title
 	AlbumID     string   // Spotify Album ID or your internal ID
@@ -64,11 +64,11 @@ type Track struct {
 	Artists     []Artist // List of track artists (can differ from album artists)
 	DurationMs  int
 	Source      SourceType
-	SpotifyID   string `json:",omitempty"` // Ensure this exists if needed elsewhere
-	ISRC        string `json:",omitempty"` // External ID
-	PreviewURL  string `json:",omitempty"`
-	Images      []Image  // Typically Album images
-	ReleaseDate string   // YYYY-MM-DD or YYYY (from Album)
+	SpotifyID   string  `json:",omitempty"` // Ensure this exists if needed elsewhere
+	ISRC        string  `json:",omitempty"` // External ID
+	PreviewURL  string  `json:",omitempty"`
+	Images      []Image // Typically Album images
+	ReleaseDate string  // YYYY-MM-DD or YYYY (from Album)
 	TrackNumber int
 	DiscNumber  int
 	Explicit    bool
@@ -91,7 +91,6 @@ type Playlist struct {
 }
 
 // --- End Placeholder Model Structs ---
-
 
 // SpotifyService interacts with the Spotify API using an authenticated client.
 type SpotifyService struct {
@@ -166,14 +165,14 @@ func mapSpotifyFullTrackToGofi(track *spotify.FullTrack) *models.Track {
 
 	return &models.Track{
 		ID:          track.ID.String(),
-		SpotifyID:   track.ID.String(), // Populate SpotifyID
+		SpotifyID:   track.ID.String(),    // Populate SpotifyID
 		Source:      models.SourceSpotify, // Use models constant
 		Title:       track.Name,
 		Artists:     mapSpotifyArtistsToGofi(track.Artists), // Returns []models.Artist
-		Album:       gofiAlbum,                         // Assign *models.Album
-		DurationMs:  int(track.Duration),           // Cast spotify.Numeric to int
-		TrackNumber: int(track.TrackNumber),        // Cast spotify.Numeric to int
-		DiscNumber:  int(track.DiscNumber),         // Cast spotify.Numeric to int
+		Album:       gofiAlbum,                              // Assign *models.Album
+		DurationMs:  int(track.Duration),                    // Cast spotify.Numeric to int
+		TrackNumber: int(track.TrackNumber),                 // Cast spotify.Numeric to int
+		DiscNumber:  int(track.DiscNumber),                  // Cast spotify.Numeric to int
 		Explicit:    track.Explicit,
 		ISRC:        isrc,
 		Images:      mapSpotifyImagesToGofi(track.Album.Images), // Returns []models.Image
@@ -185,26 +184,26 @@ func mapSpotifyFullTrackToGofi(track *spotify.FullTrack) *models.Track {
 // Maps SimpleTrack + SimpleAlbum context to models.Track
 // Takes *models.Album as context
 func mapSpotifySimpleTrackToGofi(track *spotify.SimpleTrack, albumContext *models.Album) *models.Track {
-    if track == nil {
-        return nil // Return nil if track is nil
-    }
+	if track == nil {
+		return nil // Return nil if track is nil
+	}
 
-    return &models.Track{
-        ID:          track.ID.String(),
-        SpotifyID:   track.ID.String(), // Populate SpotifyID
-        Source:      models.SourceSpotify, // Use models constant
-        Title:       track.Name,
-        Artists:     mapSpotifyArtistsToGofi(track.Artists), // Returns []models.Artist
-        Album:       albumContext,                      // Use provided *models.Album context
-        DurationMs:  int(track.Duration),           // Cast spotify.Numeric to int
-        TrackNumber: int(track.TrackNumber),        // Cast spotify.Numeric to int
-        // DiscNumber not on SimpleTrack
-        Explicit:    track.Explicit,
+	return &models.Track{
+		ID:          track.ID.String(),
+		SpotifyID:   track.ID.String(),    // Populate SpotifyID
+		Source:      models.SourceSpotify, // Use models constant
+		Title:       track.Name,
+		Artists:     mapSpotifyArtistsToGofi(track.Artists), // Returns []models.Artist
+		Album:       albumContext,                           // Use provided *models.Album context
+		DurationMs:  int(track.Duration),                    // Cast spotify.Numeric to int
+		TrackNumber: int(track.TrackNumber),                 // Cast spotify.Numeric to int
+		// DiscNumber not on SimpleTrack
+		Explicit: track.Explicit,
 		// ISRC not on SimpleTrack
 		// Images taken from albumContext
 		// ReleaseDate taken from albumContext
-        // AddedAt set contextually
-    }
+		// AddedAt set contextually
+	}
 }
 
 // Maps SimpleAlbum to models.Album
@@ -225,7 +224,6 @@ func mapSpotifySimpleAlbumToGofi(album *spotify.SimpleAlbum) *models.Album {
 	}
 }
 
-
 // Maps FullAlbum to models.Album
 func mapSpotifyAlbumToGofi(album *spotify.FullAlbum) *models.Album {
 	if album == nil {
@@ -238,20 +236,19 @@ func mapSpotifyAlbumToGofi(album *spotify.FullAlbum) *models.Album {
 	// Cast Total via embedded Tracks field
 	totalTracks := int(album.Tracks.Total) // Cast spotify.Numeric to int
 
-
 	return &models.Album{
 		ID:          album.ID.String(),
-		SpotifyID:   album.ID.String(),   // Populate SpotifyID
+		SpotifyID:   album.ID.String(),    // Populate SpotifyID
 		Source:      models.SourceSpotify, // Use models constant
 		Title:       album.Name,
 		Artists:     mapSpotifyArtistsToGofi(album.Artists), // Returns []models.Artist
-		Images:      mapSpotifyImagesToGofi(album.Images), // Returns []models.Image
+		Images:      mapSpotifyImagesToGofi(album.Images),   // Returns []models.Image
 		ReleaseDate: album.ReleaseDate,
-		Label:       label,             // Populate Label (direct access)
-		TotalTracks: totalTracks,       // Populate TotalTracks (casted)
+		Label:       label,       // Populate Label (direct access)
+		TotalTracks: totalTracks, // Populate TotalTracks (casted)
 		UPC:         upc,
-		Genres:      album.Genres,      // Populate Genres
-		AlbumType:   album.AlbumType,   // Populate AlbumType
+		Genres:      album.Genres,    // Populate Genres
+		AlbumType:   album.AlbumType, // Populate AlbumType
 	}
 }
 
@@ -260,28 +257,26 @@ func mapSpotifyPlaylistToGofi(playlist *spotify.FullPlaylist) *models.Playlist {
 	if playlist == nil {
 		return nil
 	}
-    // Access IsPublic (not Public) field from the embedded SimplePlaylist
-    isPublic := playlist.IsPublic // Correct field name in the library
+	// Access IsPublic (not Public) field from the embedded SimplePlaylist
+	isPublic := playlist.IsPublic // Correct field name in the library
 	// Cast Total via embedded Tracks field
 	totalTracks := int(playlist.Tracks.Total) // Cast spotify.Numeric to int
 	// Access DisplayName via embedded Owner field
 	ownerName := playlist.Owner.DisplayName
 
-
 	return &models.Playlist{
 		ID:          playlist.ID.String(),
-		SpotifyID:   playlist.ID.String(),   // Populate SpotifyID
+		SpotifyID:   playlist.ID.String(), // Populate SpotifyID
 		Source:      models.SourceSpotify, // Use models constant
 		Title:       playlist.Name,
 		Description: playlist.Description,
-		OwnerName:   ownerName, // Populate OwnerName (direct access)
+		OwnerName:   ownerName,                               // Populate OwnerName (direct access)
 		Images:      mapSpotifyImagesToGofi(playlist.Images), // Returns []models.Image
-		Public:      isPublic,          // Populate Public (direct access)
-		TotalTracks: totalTracks,       // Populate TotalTracks (casted)
+		Public:      isPublic,                                // Populate Public (direct access)
+		TotalTracks: totalTracks,                             // Populate TotalTracks (casted)
 		// Removed OwnerID, Collaborative as they aren't in models.Playlist
 	}
 }
-
 
 // --- Service Methods ---
 
@@ -301,13 +296,12 @@ func (s *SpotifyService) FetchTrack(ctx context.Context, id string) (*models.Tra
 
 	gofiTrack := mapSpotifyFullTrackToGofi(fullTrack) // Returns *models.Track
 	if gofiTrack == nil {
-		 return nil, fmt.Errorf("failed to map spotify track %s", id)
+		return nil, fmt.Errorf("failed to map spotify track %s", id)
 	}
 
 	log.Printf("Fetched Spotify track: %s - %s", gofiTrack.Title, joinArtists(gofiTrack.Artists)) // Use models.Artist slice
 	return gofiTrack, nil
 }
-
 
 // FetchAlbum retrieves album details and its tracks from Spotify.
 func (s *SpotifyService) FetchAlbum(ctx context.Context, id string) (*models.Album, []models.Track, error) {
@@ -325,9 +319,9 @@ func (s *SpotifyService) FetchAlbum(ctx context.Context, id string) (*models.Alb
 	}
 
 	gofiAlbum := mapSpotifyAlbumToGofi(fullAlbum) // Returns *models.Album
-    if gofiAlbum == nil {
-        return nil, nil, fmt.Errorf("failed to map spotify album %s", id)
-    }
+	if gofiAlbum == nil {
+		return nil, nil, fmt.Errorf("failed to map spotify album %s", id)
+	}
 
 	log.Printf("Fetching tracks for Spotify album: %s (%s)", gofiAlbum.Title, id)
 	var gofiTracks []models.Track // Use models.Track slice
@@ -350,11 +344,11 @@ func (s *SpotifyService) FetchAlbum(ctx context.Context, id string) (*models.Alb
 		for _, simpleTrack := range albumTracksPage.Tracks {
 			// Pass *models.Album context
 			gofiTrack := mapSpotifySimpleTrackToGofi(&simpleTrack, simpleAlbumForMapping) // Returns *models.Track
-            if gofiTrack != nil {
-			    gofiTracks = append(gofiTracks, *gofiTrack) // Append models.Track
-            } else {
-                log.Printf("Warning: Failed to map simple track %s from album %s", simpleTrack.ID, id)
-            }
+			if gofiTrack != nil {
+				gofiTracks = append(gofiTracks, *gofiTrack) // Append models.Track
+			} else {
+				log.Printf("Warning: Failed to map simple track %s from album %s", simpleTrack.ID, id)
+			}
 		}
 
 		if len(albumTracksPage.Tracks) < limit {
@@ -363,10 +357,9 @@ func (s *SpotifyService) FetchAlbum(ctx context.Context, id string) (*models.Alb
 		offset += len(albumTracksPage.Tracks)
 	}
 
-    log.Printf("Fetched total %d tracks for Spotify album: %s - %s", len(gofiTracks), gofiAlbum.Title, joinArtists(gofiAlbum.Artists)) // Use models.Artist slice
+	log.Printf("Fetched total %d tracks for Spotify album: %s - %s", len(gofiTracks), gofiAlbum.Title, joinArtists(gofiAlbum.Artists)) // Use models.Artist slice
 	return gofiAlbum, gofiTracks, nil
 }
-
 
 // FetchPlaylist retrieves playlist details and its tracks from Spotify.
 func (s *SpotifyService) FetchPlaylist(ctx context.Context, id string) (*models.Playlist, []models.Track, error) {
@@ -384,9 +377,9 @@ func (s *SpotifyService) FetchPlaylist(ctx context.Context, id string) (*models.
 	}
 
 	gofiPlaylist := mapSpotifyPlaylistToGofi(fullPlaylist) // Returns *models.Playlist
-    if gofiPlaylist == nil {
-         return nil, nil, fmt.Errorf("failed to map spotify playlist %s", id)
-    }
+	if gofiPlaylist == nil {
+		return nil, nil, fmt.Errorf("failed to map spotify playlist %s", id)
+	}
 
 	log.Printf("Fetching items for Spotify playlist: %s (%s)", gofiPlaylist.Title, id)
 	var gofiTracks []models.Track // Use models.Track slice
@@ -407,7 +400,7 @@ func (s *SpotifyService) FetchPlaylist(ctx context.Context, id string) (*models.
 		for _, item := range playlistItemsPage.Items {
 			if item.Track.Track != nil {
 				gofiTrack := mapSpotifyFullTrackToGofi(item.Track.Track) // Returns *models.Track
-                if gofiTrack != nil {
+				if gofiTrack != nil {
 					// Check if AddedAt is not empty before parsing
 					if item.AddedAt != "" {
 						// Parse the timestamp string directly using time.Parse with RFC3339 format
@@ -418,13 +411,15 @@ func (s *SpotifyService) FetchPlaylist(ctx context.Context, id string) (*models.
 							gofiTrack.AddedAt = &parsedTime
 						}
 					}
-				    gofiTracks = append(gofiTracks, *gofiTrack) // Append models.Track
-                } else {
-                     log.Printf("Warning: Failed to map track %s from playlist %s", item.Track.Track.ID, id)
-                }
+					gofiTracks = append(gofiTracks, *gofiTrack) // Append models.Track
+				} else {
+					log.Printf("Warning: Failed to map track %s from playlist %s", item.Track.Track.ID, id)
+				}
 			} else {
-                itemType := "unknown"
-                if item.Track.Episode != nil { itemType = "episode" }
+				itemType := "unknown"
+				if item.Track.Episode != nil {
+					itemType = "episode"
+				}
 				log.Printf("Skipping non-track item (type: %s) in playlist %s", itemType, id)
 			}
 		}
@@ -435,25 +430,25 @@ func (s *SpotifyService) FetchPlaylist(ctx context.Context, id string) (*models.
 		offset += len(playlistItemsPage.Items)
 	}
 
-    log.Printf("Fetched total %d tracks for Spotify playlist: %s", len(gofiTracks), gofiPlaylist.Title)
+	log.Printf("Fetched total %d tracks for Spotify playlist: %s", len(gofiTracks), gofiPlaylist.Title)
 	return gofiPlaylist, gofiTracks, nil
 }
 
 // Simple helper to join artist names for logging (now takes models.Artist)
 func joinArtists(artists []models.Artist) string {
-    if len(artists) == 0 {
+	if len(artists) == 0 {
 		return "Unknown Artist(s)"
 	}
-    names := make([]string, 0, len(artists))
-    for _, a := range artists {
+	names := make([]string, 0, len(artists))
+	for _, a := range artists {
 		if a.Name != "" {
 			names = append(names, a.Name)
 		}
-    }
+	}
 	if len(names) == 0 {
-        return "Unknown Artist(s)" // Handle case where all names were empty
-    }
-    return strings.Join(names, ", ")
+		return "Unknown Artist(s)" // Handle case where all names were empty
+	}
+	return strings.Join(names, ", ")
 }
 
 // GetClientFromToken retrieves a Spotify client using a stored token.
@@ -462,7 +457,7 @@ func GetClientFromToken(ctx context.Context, token *oauth2.Token, config *Config
 	if config == nil {
 		return nil, errors.New("spotify config cannot be nil")
 	}
-	
+
 	oauthCfg := config.OAuthConfig()
 	if oauthCfg == nil {
 		return nil, errors.New("oauth2 config within spotify config is nil")

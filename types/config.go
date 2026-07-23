@@ -49,4 +49,4 @@ func DefaultConfig() Config {
 	config.Playlist.ResolveFullPath = false
 
 	return config
-} 
+}
