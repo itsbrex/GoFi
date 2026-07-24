@@ -17,7 +17,7 @@ make install                # Install to /usr/local/bin
 make install PREFIX=$HOME/.local  # Install to custom directory
 make install-dev           # Create symlink for development
 
-# Build the legacy CLI (Deezer only)
+# Build the d-fi CLI (upstream entrypoint at ./cmd/d-fi)
 make build
 
 # Build all binaries
@@ -121,10 +121,16 @@ gofi --version
    - Album cover art: `metadata/album_cover.go`
 
 5. **CLI Interface**:
-   - Legacy flag-based CLI: `cmd/main.go` (Deezer only)
-   - New Cobra-based CLI: `cmd/gofi/cmd/` (includes Spotify support)
+   - Cobra-based `gofi` CLI: `cmd/gofi/cmd/` (Deezer + Spotify; this fork's primary CLI)
    - Improved download handler: `cmd/gofi/cmd/download_handler_improved.go`
+   - Upstream `d-fi` CLI + app layer: `cmd/d-fi/` on top of `internal/dfi/` (ported from d-fi/GoFi; `make build`)
    - Version support with automatic injection during build
+
+7. **Upstream-merged packages** (from d-fi/GoFi, merged through v2.3.4):
+   - Link converters: `converter/` (Spotify, Tidal, YouTube, Deezer) with `spotify_match.go` for cross-service matching
+   - Application layer: `internal/dfi/` (config, search, download orchestration used by `cmd/d-fi`)
+   - Web UI: `internal/web/` (embedded HTTP server, HTML/CSS/JS assets)
+   - Save-layout templating: `utils/layout.go`, release packaging via `make pkg` / `make verify-pkg`
 
 6. **User Interface**: Beautiful terminal output
    - Display manager: `internal/ui/display.go`
