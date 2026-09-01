@@ -9,6 +9,7 @@ import (
 	"github.com/d-fi/GoFi/api"
 	"github.com/d-fi/GoFi/request"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -54,7 +55,7 @@ func TestParseDeezerUserDataAllowsNullCapabilityFields(t *testing.T) {
 			}
 		}
 	}`))
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "token", user.LicenseToken)
 	assert.True(t, user.CanStreamLossless)
 	assert.False(t, user.CanStreamHQ)
@@ -63,14 +64,14 @@ func TestParseDeezerUserDataAllowsNullCapabilityFields(t *testing.T) {
 
 func TestParseDeezerUserDataRequiresLicenseToken(t *testing.T) {
 	_, err := parseDeezerUserData([]byte(`{"results":{"USER":{"OPTIONS":{}}}}`))
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "missing license token")
 }
 
 func TestDzAuthenticate(t *testing.T) {
 	requireDeezerARL(t)
 	user, err := DzAuthenticate(context.Background())
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, user)
 	assert.NotEmpty(t, user.LicenseToken)
 	assert.True(t, user.CanStreamLossless || user.CanStreamHQ)
@@ -81,13 +82,13 @@ func TestGetTrackUrlFromServer(t *testing.T) {
 	requireDeezerARL(t)
 	trackToken := "example_track_token"
 	_, err := GetTrackUrlFromServer(context.Background(), trackToken, "MP3_320")
-	assert.Error(t, err, "Expected error due to incorrect token or unavailable track")
+	require.Error(t, err, "Expected error due to incorrect token or unavailable track")
 }
 
 func TestGetTrackDownloadUrl(t *testing.T) {
 	requireDeezerARL(t)
 	track, err := api.GetTrackInfo(SNG_ID)
-	assert.NoError(t, err, "Failed to fetch track information")
+	require.NoError(t, err, "Failed to fetch track information")
 	assert.NotEmpty(t, track.MD5_ORIGIN, "MD5 origin should not be empty")
 	assert.NotEmpty(t, track.TRACK_TOKEN, "Track token should not be empty")
 
@@ -100,9 +101,9 @@ func TestGetTrackDownloadUrl(t *testing.T) {
 			if err == nil {
 				assert.NotNil(t, trackURL)
 				assert.NotEmpty(t, trackURL.TrackUrl)
-				assert.Greater(t, trackURL.FileSize, int64(0))
+				assert.Positive(t, trackURL.FileSize)
 			} else {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), "Your account can't stream")
 			}
 		})
@@ -112,10 +113,10 @@ func TestGetTrackDownloadUrl(t *testing.T) {
 func TestGetTrackDownloadUrlWithInvalidQuality(t *testing.T) {
 	requireDeezerARL(t)
 	track, err := api.GetTrackInfo(SNG_ID)
-	assert.NoError(t, err, "Failed to fetch track information")
+	require.NoError(t, err, "Failed to fetch track information")
 	assert.NotEmpty(t, track.TRACK_TOKEN, "Track token should not be empty")
 
 	_, err = GetTrackDownloadUrl(context.Background(), track, 999) // Testing an invalid quality
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown quality 999")
 }

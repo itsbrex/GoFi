@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCheckURLFileSize(t *testing.T) {
@@ -61,10 +62,10 @@ func TestCheckURLFileSize(t *testing.T) {
 			size, err := CheckURLFileSize(context.Background(), server.URL, test.timeout)
 
 			if test.expectedErrMsg != "" {
-				assert.Error(t, err, "Expected an error for test '%s'", test.name)
+				require.Error(t, err, "Expected an error for test '%s'", test.name)
 				assert.Contains(t, err.Error(), test.expectedErrMsg, "Error message mismatch for test '%s'", test.name)
 			} else {
-				assert.NoError(t, err, "Unexpected error for test '%s'", test.name)
+				require.NoError(t, err, "Unexpected error for test '%s'", test.name)
 				assert.Equal(t, test.expectedSize, size, "File size mismatch for test '%s'", test.name)
 			}
 		})

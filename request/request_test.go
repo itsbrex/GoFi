@@ -22,11 +22,11 @@ func TestRequestGetCacheKeyIncludesParams(t *testing.T) {
 
 	requests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/gateway.php", r.URL.Path)
-		require.Equal(t, "test_method", r.URL.Query().Get("method"))
+		assert.Equal(t, "/gateway.php", r.URL.Path)
+		assert.Equal(t, "test_method", r.URL.Query().Get("method"))
 		requests++
 		_, err := fmt.Fprintf(w, `{"error":[],"results":{"page":%q}}`, r.URL.Query().Get("page"))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}))
 	t.Cleanup(server.Close)
 
@@ -49,23 +49,23 @@ func TestRequestGetCacheKeyIncludesParams(t *testing.T) {
 func TestRequestPublicApiDoesNotCacheHTTPError(t *testing.T) {
 	previousClient := Client
 	previousCache := cache
-	previousPublicAPIBaseURL := publicAPIBaseURL
+	previousPublicApiBaseURL := publicAPIBaseURL
 	t.Cleanup(func() {
 		Client = previousClient
 		cache = previousCache
-		publicAPIBaseURL = previousPublicAPIBaseURL
+		publicAPIBaseURL = previousPublicApiBaseURL
 	})
 
 	requests := 0
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		require.Equal(t, "/album/1", r.URL.Path)
+		assert.Equal(t, "/album/1", r.URL.Path)
 		requests++
 		if requests == 1 {
 			http.Error(w, "blocked", http.StatusForbidden)
 			return
 		}
 		_, err := fmt.Fprint(w, `{"id":1}`)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}))
 	t.Cleanup(server.Close)
 

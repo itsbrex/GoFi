@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSongContributorsUnmarshalJSON(t *testing.T) {
@@ -47,7 +48,7 @@ func TestSongContributorsUnmarshalJSON(t *testing.T) {
 				assert.Error(t, err)
 				return
 			}
-			assert.NoError(t, err)
+			require.NoError(t, err)
 			assert.Equal(t, tt.expected, sc)
 		})
 	}
@@ -60,7 +61,7 @@ func TestSongTypeUnmarshalWithArrayContributors(t *testing.T) {
 
 	var song SongType
 	err := json.Unmarshal([]byte(data), &song)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Kids", song.SNG_TITLE)
 	assert.NotNil(t, song.SNG_CONTRIBUTORS)
 	assert.Empty(t, song.SNG_CONTRIBUTORS.MainArtist)

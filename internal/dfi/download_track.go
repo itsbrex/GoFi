@@ -289,7 +289,6 @@ func downloadToTemp(ctx context.Context, trackData *download.TrackDownloadUrl, t
 		if err := os.Remove(tmpFile); err != nil && !os.IsNotExist(err) {
 			return err
 		}
-		downloaded = 0
 		return downloadToTemp(ctx, trackData, tmpFile, onProgress)
 	}
 

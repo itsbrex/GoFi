@@ -36,7 +36,7 @@ func checkResponse(data []byte) (json.RawMessage, error) {
 	case map[string]any:
 		var errorMessage strings.Builder
 		for key, value := range errVal {
-			errorMessage.WriteString(fmt.Sprintf("%s: %v, ", key, value))
+			fmt.Fprintf(&errorMessage, "%s: %v, ", key, value)
 		}
 		logger.Debug("API error: %v", errorMessage.String())
 		return nil, fmt.Errorf("API error: %v", errorMessage.String())

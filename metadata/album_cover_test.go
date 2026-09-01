@@ -19,19 +19,19 @@ func TestDownloadAlbumCover(t *testing.T) {
 	coverSizes := []int{56, 250, 500, 1000, 1200, 1400, 1500, 1800}
 	for _, size := range coverSizes {
 		cover, err := DownloadAlbumCover(ALB_PICTURE, size)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotNil(t, cover)
-		assert.Greater(t, len(cover), 0)
+		assert.NotEmpty(t, cover)
 	}
 
 	// Test invalid cover sizes
 	_, err := DownloadAlbumCover(ALB_PICTURE, 2000)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "invalid cover size: 2000", err.Error())
 
 	// Test empty album picture hash
 	_, err = DownloadAlbumCover("", 500)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "album picture hash is empty", err.Error())
 }
 
@@ -53,7 +53,7 @@ func TestDownloadAlbumCoverDoesNotCacheHTTPError(t *testing.T) {
 			return
 		}
 		_, err := w.Write([]byte("jpeg"))
-		require.NoError(t, err)
+		assert.NoError(t, err)
 	}))
 	t.Cleanup(server.Close)
 

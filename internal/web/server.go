@@ -37,7 +37,7 @@ type Server struct {
 	cfg     dfi.Config
 	session sessionState
 	jobs    map[int64]*downloadJob
-	nextID  int64
+	nextID  atomic.Int64
 }
 
 type sessionState struct {
@@ -333,7 +333,7 @@ func (s *Server) handleStartDownload(w http.ResponseWriter, r *http.Request) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	job := &downloadJob{
-		ID:          atomic.AddInt64(&s.nextID, 1),
+		ID:          s.nextID.Add(1),
 		Source:      req.Query,
 		Quality:     label,
 		Status:      "queued",

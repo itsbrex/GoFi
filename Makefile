@@ -53,4 +53,7 @@ test:
 	$(GOCLEAN) -testcache
 	$(GOTEST) -v ./...
 
-.PHONY: build pkg verify-pkg clean-pkg clean test
+lint:
+	golangci-lint run ./...
+
+.PHONY: build pkg verify-pkg clean-pkg clean test lint

@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 
 func TestGetUser(t *testing.T) {
 	response, err := GetUser()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, response.BlogName)
 	assert.NotEmpty(t, response.Email)
 	assert.NotEmpty(t, response.UserID)
@@ -42,7 +42,7 @@ func TestGetUser(t *testing.T) {
 
 func TestGetTrackInfo(t *testing.T) {
 	response, err := GetTrackInfo(SNG_ID)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, SNG_ID, response.SNG_ID)
 	assert.Equal(t, "GBDUW0000059", response.ISRC)
 	assert.Equal(t, "000790eceb6cb6732d225c0585632b31", response.MD5_ORIGIN)
@@ -51,7 +51,7 @@ func TestGetTrackInfo(t *testing.T) {
 
 func TestGetTrackInfoPublicApi(t *testing.T) {
 	response, err := GetTrackInfoPublicApi(SNG_ID)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, SNG_ID, strconv.Itoa(response.ID))
 	assert.Equal(t, "GBDUW0000059", response.ISRC)
 	assert.Equal(t, "track", response.Type)
@@ -59,15 +59,15 @@ func TestGetTrackInfoPublicApi(t *testing.T) {
 
 func TestGetLyrics(t *testing.T) {
 	response, err := GetLyrics(SNG_ID)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotNil(t, response.LYRICS_ID)
 	assert.Equal(t, "2780622", *response.LYRICS_ID)
-	assert.Greater(t, len(response.LYRICS_TEXT), 0)
+	assert.NotEmpty(t, response.LYRICS_TEXT)
 }
 
 func TestGetAlbumInfo(t *testing.T) {
 	response, err := GetAlbumInfo(ALB_ID)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, ALB_ID, response.ALB_ID)
 	assert.Equal(t, "724384960650", response.UPC)
 	assert.Equal(t, "album", response.TYPE_INTERNAL)
@@ -75,7 +75,7 @@ func TestGetAlbumInfo(t *testing.T) {
 
 func TestGetAlbumInfoPublicApi(t *testing.T) {
 	response, err := GetAlbumInfoPublicApi(ALB_ID)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, ALB_ID, strconv.Itoa(response.ID))
 	assert.Equal(t, "724384960650", response.UPC)
 	assert.Equal(t, "album", response.Type)
@@ -83,7 +83,7 @@ func TestGetAlbumInfoPublicApi(t *testing.T) {
 
 func TestGetAlbumTracks(t *testing.T) {
 	response, err := GetAlbumTracks(ALB_ID)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 14, response.Count)
 	assert.Equal(t, len(response.Data), response.Count)
 }
@@ -91,8 +91,8 @@ func TestGetAlbumTracks(t *testing.T) {
 func TestGetPlaylistInfo(t *testing.T) {
 	PLAYLIST_ID := "4523119944"
 	response, err := GetPlaylistInfo(PLAYLIST_ID)
-	assert.NoError(t, err)
-	assert.Greater(t, response.NbSong, 0)
+	require.NoError(t, err)
+	assert.Positive(t, response.NbSong)
 	assert.Equal(t, "sayem314", response.ParentUsername)
 	assert.Equal(t, "playlist", response.TYPE_INTERNAL)
 }
@@ -100,15 +100,15 @@ func TestGetPlaylistInfo(t *testing.T) {
 func TestGetPlaylistTracks(t *testing.T) {
 	PLAYLIST_ID := "4523119944"
 	response, err := GetPlaylistTracks(PLAYLIST_ID)
-	assert.NoError(t, err)
-	assert.Greater(t, response.Count, 0)
+	require.NoError(t, err)
+	assert.Positive(t, response.Count)
 	assert.Equal(t, len(response.Data), response.Count)
 }
 
 func TestGetArtistInfo(t *testing.T) {
 	ART_ID := "13"
 	response, err := GetArtistInfo(ART_ID)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "Eminem", response.ART_NAME)
 	assert.Equal(t, "artist", response.TYPE_INTERNAL)
 }
@@ -116,7 +116,7 @@ func TestGetArtistInfo(t *testing.T) {
 func TestGetDiscography(t *testing.T) {
 	ART_ID := "13"
 	response, err := GetDiscography(ART_ID, 10)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, 10, response.Count)
 	assert.Equal(t, len(response.Data), response.Count)
 }
@@ -124,7 +124,7 @@ func TestGetDiscography(t *testing.T) {
 func TestGetProfile(t *testing.T) {
 	USER_ID := "2064440442"
 	response, err := GetProfile(USER_ID)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "sayem314", response.USER.BLOG_NAME)
 	assert.Equal(t, "user", response.USER.TYPE_INTERNAL)
 }
@@ -133,7 +133,7 @@ func TestSearchAlternative(t *testing.T) {
 	ARTIST := "Eminem"
 	TRACK := "The Real Slim Shady"
 	response, err := SearchAlternative(ARTIST, TRACK, 10)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "artist:'eminem' track:'the real slim shady'", response.QUERY)
 	assert.Equal(t, len(response.TRACK.Data), response.TRACK.Count)
 }
@@ -141,26 +141,26 @@ func TestSearchAlternative(t *testing.T) {
 func TestSearchMusic(t *testing.T) {
 	QUERY := "Eminem"
 	response, err := SearchMusic(QUERY, 1, "TRACK", "ALBUM", "ARTIST")
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, strings.ToLower(QUERY), response.QUERY)
-	assert.Greater(t, response.TRACK.Count, 0)
-	assert.Greater(t, response.ALBUM.Count, 0)
-	assert.Greater(t, response.ARTIST.Count, 0)
+	assert.Positive(t, response.TRACK.Count)
+	assert.Positive(t, response.ALBUM.Count)
+	assert.Positive(t, response.ARTIST.Count)
 }
 
 func TestGetChannelList(t *testing.T) {
 	response, err := GetChannelList()
-	assert.NoError(t, err)
-	assert.Greater(t, response.Count, 0)
+	require.NoError(t, err)
+	assert.Positive(t, response.Count)
 	assert.Equal(t, len(response.Data), response.Count)
 }
 
 func TestGetShowInfo(t *testing.T) {
 	response, err := GetShowInfo("338532", 10, 0)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Equal(t, "201952", response.Data.LabelID)
 	assert.Equal(t, 10, response.Episodes.Count)
-	assert.True(t, len(response.Episodes.Data) > 0)
+	assert.NotEmpty(t, response.Episodes.Data)
 }
 
 func TestGetPlaylistChannel(t *testing.T) {
