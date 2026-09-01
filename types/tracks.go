@@ -227,21 +227,21 @@ type TrackTypePublicAPI struct {
 	Type string `json:"type"` // 'track'
 }
 
-// UnmarshalJSON for SongContributors allows dynamic handling of multiple structures.
+// UnmarshalJSON tolerates the empty-array shape Deezer can return for songs
+// without contributor metadata (e.g., those with no credited contributors),
+// mirroring AlbumContributors.UnmarshalJSON.
 func (sc *SongContributors) UnmarshalJSON(data []byte) error {
-	// Attempt to unmarshal directly into the struct
-	type Alias SongContributors
-	var tmp Alias
-	if err := json.Unmarshal(data, &tmp); err == nil {
-		*sc = SongContributors(tmp)
-		return nil
-	}
-
-	// If the above fails, try parsing as an empty array
-	if string(data) == "[]" || string(data) == "{}" {
+	// Empty array instead of an object for songs without contributors
+	if string(data) == "[]" {
 		*sc = SongContributors{}
 		return nil
 	}
 
-	return fmt.Errorf("failed to unmarshal SongContributors: %s", string(data))
+	type Alias SongContributors
+	var tmp Alias
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return fmt.Errorf("failed to unmarshal SongContributors: %w", err)
+	}
+	*sc = SongContributors(tmp)
+	return nil
 }

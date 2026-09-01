@@ -12,7 +12,7 @@ import (
 
 // CheckURLFileSize performs a HEAD request to check the availability of a URL
 // and returns the content length if available.
-// The timeout parameter is optional; if nil, it defaults to 10 seconds.
+// The timeout parameter is optional. If nil, it defaults to 10 seconds.
 func CheckURLFileSize(ctx context.Context, url string, timeout *time.Duration) (int64, error) {
 	var clientTimeout time.Duration
 

@@ -31,25 +31,23 @@ type AlbumContributors struct {
 	MainArtist []string `json:"main_artist"` // Main artist, e.g., ['Avicii']
 }
 
-// UnmarshalJSON for AlbumContributors allows dynamic handling of multiple structures.
-// Albums without contributor metadata (e.g., various-artists soundtracks) are returned
-// by the API as an empty array instead of an object.
+// UnmarshalJSON handles both shapes Deezer uses for ALB_CONTRIBUTORS.
+// Albums without contributor metadata (e.g., various-artists soundtracks)
+// are returned as an empty array instead of an object.
 func (ac *AlbumContributors) UnmarshalJSON(data []byte) error {
-	// Attempt to unmarshal directly into the struct
-	type Alias AlbumContributors
-	var tmp Alias
-	if err := json.Unmarshal(data, &tmp); err == nil {
-		*ac = AlbumContributors(tmp)
-		return nil
-	}
-
-	// If the above fails, try parsing as an empty array
-	if string(data) == "[]" || string(data) == "{}" {
+	// Empty array instead of an object for albums without contributors
+	if string(data) == "[]" {
 		*ac = AlbumContributors{}
 		return nil
 	}
 
-	return fmt.Errorf("failed to unmarshal AlbumContributors: %s", string(data))
+	type Alias AlbumContributors
+	var tmp Alias
+	if err := json.Unmarshal(data, &tmp); err != nil {
+		return fmt.Errorf("failed to unmarshal AlbumContributors: %w", err)
+	}
+	*ac = AlbumContributors(tmp)
+	return nil
 }
 
 // AlbumType represents detailed information about an album including contributors and release dates.
