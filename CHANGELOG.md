@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.3.5 - 2026-09-01
+
+This release fixes album metadata decoding for releases without contributor information and updates dependencies and tooling.
+
+### Changed
+
+- Updated Go module dependencies including `golang.org/x/crypto`, `golang.org/x/text`, and `testify`.
+- Added golangci-lint to CI for static analysis and lint checks.
+
+### Fixed
+
+- Fixed album metadata decoding failing when Deezer returns `ALB_CONTRIBUTORS` as an empty array, which affected certain soundtracks and various-artist albums. Song contributor fields now handle the same shape defensively.
+
 ## 2.3.4 - 2026-06-23
 
 This release fixes quality fallback during downloads and updates Go module dependencies.
