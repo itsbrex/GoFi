@@ -1,5 +1,10 @@
 package types
 
+import (
+	"encoding/json"
+	"fmt"
+)
+
 // AlbumTypeMinimal represents minimal information about an album, including artist and explicit content details.
 type AlbumTypeMinimal struct {
 	ALB_ID                 string       `json:"ALB_ID"`      // Album ID, e.g., '9188269'
@@ -21,14 +26,38 @@ type AlbumTypeMinimal struct {
 	TYPE_INTERNAL         string `json:"__TYPE__"`              // Internal type, e.g., 'album'
 }
 
+// AlbumContributors represents contributors to the album.
+type AlbumContributors struct {
+	MainArtist []string `json:"main_artist"` // Main artist, e.g., ['Avicii']
+}
+
+// UnmarshalJSON for AlbumContributors allows dynamic handling of multiple structures.
+// Albums without contributor metadata (e.g., various-artists soundtracks) are returned
+// by the API as an empty array instead of an object.
+func (ac *AlbumContributors) UnmarshalJSON(data []byte) error {
+	// Attempt to unmarshal directly into the struct
+	type Alias AlbumContributors
+	var tmp Alias
+	if err := json.Unmarshal(data, &tmp); err == nil {
+		*ac = AlbumContributors(tmp)
+		return nil
+	}
+
+	// If the above fails, try parsing as an empty array
+	if string(data) == "[]" || string(data) == "{}" {
+		*ac = AlbumContributors{}
+		return nil
+	}
+
+	return fmt.Errorf("failed to unmarshal AlbumContributors: %s", string(data))
+}
+
 // AlbumType represents detailed information about an album including contributors and release dates.
 type AlbumType struct {
-	ALB_CONTRIBUTORS struct { // Contributors to the album
-		MainArtist []string `json:"main_artist"` // Main artist, e.g., ['Avicii']
-	} `json:"ALB_CONTRIBUTORS"`
-	ALB_ID                 string   `json:"ALB_ID"`      // Album ID, e.g., '9188269'
-	ALB_PICTURE            string   `json:"ALB_PICTURE"` // Album picture hash, e.g., '6e58a99f59a150e9b4aefbeb2d6fc856'
-	EXPLICIT_ALBUM_CONTENT struct { // Explicit content details
+	ALB_CONTRIBUTORS       AlbumContributors `json:"ALB_CONTRIBUTORS"` // Contributors to the album
+	ALB_ID                 string            `json:"ALB_ID"`           // Album ID, e.g., '9188269'
+	ALB_PICTURE            string            `json:"ALB_PICTURE"`      // Album picture hash, e.g., '6e58a99f59a150e9b4aefbeb2d6fc856'
+	EXPLICIT_ALBUM_CONTENT struct {          // Explicit content details
 		EXPLICIT_LYRICS_STATUS int `json:"EXPLICIT_LYRICS_STATUS"` // Explicit lyrics status, e.g., 0
 		EXPLICIT_COVER_STATUS  int `json:"EXPLICIT_COVER_STATUS"`  // Explicit cover status, e.g., 0
 	} `json:"EXPLICIT_ALBUM_CONTENT"`
