@@ -114,7 +114,8 @@ export async function invoke(name, args = {}) {
     try {
       await handle.writeFile(job_id); await handle.close();
       await mkdir(dir, { mode: 0o700 });
-      const request = { url: args.url, output: args.output || (kind === 'track' ? c.tracks : c.playlists), repo: c.repo };
+      const source = new URL(args.url);
+      const request = { url: source.origin + source.pathname, output: args.output || (kind === 'track' ? c.tracks : c.playlists), repo: c.repo };
       await atomicJson(join(dir, 'request.json'), request);
       await atomicJson(join(dir, 'result.json'), { job_id, status: 'running', kind, started_at: new Date().toISOString() });
       const child = spawn(process.execPath, [join(root, 'runtime/worker.mjs'), dir], { detached: true, stdio: 'ignore', env: privateEnv() });

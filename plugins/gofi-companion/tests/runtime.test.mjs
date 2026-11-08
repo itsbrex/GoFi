@@ -59,8 +59,10 @@ test('CLI provider preserves malicious input as data before rejecting it', async
 });
 
 test('long downloads return jobs, serialize starts and retain review status', async () => {
-  const job = await invoke('download_start', { url: 'https://open.spotify.com/playlist/fixture', output: join(fixture, 'out') });
+  const job = await invoke('download_start', { url: 'https://open.spotify.com/playlist/fixture?tracking=private#fragment', output: join(fixture, 'out') });
   assert.equal(job.status, 'running');
+  const saved = JSON.parse(await readFile(join(process.env.GOFI_COMPANION_STATE_DIR, 'jobs', job.job_id, 'request.json')));
+  assert.equal(saved.url, 'https://open.spotify.com/playlist/fixture');
   await assert.rejects(invoke('download_start', { url: 'https://open.spotify.com/track/fixture' }), /active or interrupted/);
   let state;
   for (let i = 0; i < 100; i++) {

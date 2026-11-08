@@ -97,6 +97,8 @@ node scripts/export-cli-config.mjs > /private/path/gofi-cli.utcp.json
 
 The bootstrap helper uses isolated state, creates a local no-OAuth profile, and calls `register gofi --dry-run` to export `gofi.utcp.json`. It does not change live host registrations or sign in. Both exports use real `manual_call_templates`, with `call_template_type: mcp` or `cli`, accepted by UTCP code-mode-mcp and code-mode-cli. Select the exported file using your client's config option. Paths point at this installed plugin; regenerate after moving it. The external CLI manual takes a JSON `request` string and returns an `ok/result/error` envelope; bundled runtimes expose natural typed arguments and turn failures into tool errors. No music credentials appear in either export.
 
+Use each client's search/info output to obtain the exact callable name. UTCP MCP versions differ in server-name prefixes; a name discovered in one client may differ in another. The bundled runtimes normalize names to `gofi.*`.
+
 ## Package
 
 Ten skills include setup, operations and code-mode guidance. Root `plugin.json` uses Agent Plugins 1.0. Host overlays add supported display fields and correct root variables. Light/dark SVG and PNG logos, composer icons, and a generated brand cover are included. See [host support and spec sources](docs/compatibility.md) for exact fields and deliberately unused components.
@@ -116,3 +118,5 @@ Install either tarball into your own project with `npm install /path/to/package.
 ## Verification
 
 Run `npm run validate`, `npm test`, and `PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v` for offline schema and behavior checks. `npm run test:packages` installs tarballs in a temporary project and uses a fake GoFi executable; it needs registry/cache access for dependencies. Live auth, music downloads and actual host UI rendering are separate proof levels. A collection run requires per-item reconciliation before claiming completion. Author attribution is package metadata; no verified publisher identity or directory approval is claimed.
+
+An optional `node scripts/check-external.mjs CLI_ENTRY MCP_ENTRY MCP_BOOTSTRAP_EXECUTABLE` checks existing UTCP installations against both exports using isolated fixtures. See [dependency and execution notes](docs/security.md) for the outstanding upstream Zod advisory; the audit is not clean.

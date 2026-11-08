@@ -1,0 +1,70 @@
+name: GoFi Companion
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'plugins/gofi-companion/**'
+      - '.claude-plugin/**'
+      - '.cursor-plugin/**'
+      - '.github/workflows/gofi-companion.yml'
+  pull_request:
+    paths:
+      - 'plugins/gofi-companion/**'
+      - '.claude-plugin/**'
+      - '.cursor-plugin/**'
+      - '.github/workflows/gofi-companion.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gofi-companion-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            node: 22
+          - os: macos-latest
+            node: 24
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: plugins/gofi-companion
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: plugins/gofi-companion/package-lock.json
+      - name: Install pinned dependencies
+        run: npm ci --no-fund
+      - name: Validate host manifests and schemas
+        run: npm run validate
+      - name: Test transports and job behavior
+        run: npm test
+      - name: Test offline Python workflows
+        run: PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests -v
+      - name: Build both packages and marketplace ZIP
+        run: npm run pack:all
+      - name: Verify fresh package installs and archives
+        run: npm run test:packages
+      - name: Upload tested distributions
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: gofi-companion-${{ matrix.os }}-node-${{ matrix.node }}
+          if-no-files-found: error
+          path: |
+            plugins/gofi-companion/artifacts/*.tgz
+            plugins/gofi-companion/artifacts/*.zip
+            plugins/gofi-companion/artifacts/SHA256SUMS

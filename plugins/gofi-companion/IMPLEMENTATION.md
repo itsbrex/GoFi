@@ -3,18 +3,18 @@
 What changed: portable host manifests, native GoFi adapter and two UTCP runtimes.
 Did it work: schemas, 36 Python regressions, 7 runtime tests and clean tarball
 installs pass with fixture GoFi only.
-What's next: CI, final review and fork-only PR.
+What's next: final artifacts, fork-only push and PR.
 
 ## Commit checklist
 
 - [x] Host metadata, icons and marketplace catalogs
 - [x] Adapter, both runtimes, bootstrap export and package builds
-- [ ] Regression coverage, installation docs and final verification
+- [x] Regression coverage, installation docs and final verification
 - [ ] Push and read back PR against itsbrex/GoFi main
 
 ## Scope
 
-Only this plugin and root marketplace catalogs belong to this change. The original
+Only this plugin, its scoped CI and root marketplace catalogs belong to this change. The original
 GoFi working tree contains unrelated changes and is preserved. This branch starts
 at the fork's current main, which contains the upstream d-fi entrypoint, not the
 user's customized gofi executable. The plugin requires an existing current GoFi
@@ -39,5 +39,14 @@ part of validation. Fixture receipts and package artifacts are local and ignored
   points passed with both underlying transports. Extracted ZIP ran independently.
 - Real local mcp-bootstrap 0.2.1 produced an isolated profile and MCP manual;
   no live registrations or credentials changed.
+- Existing UTCP code-mode-cli 0.1.2 and local code-mode-mcp 1.4.0 each accepted
+  both exported transport types and called only the fixture GoFi version tool.
+- Claude Code 2.1.319 installed the local marketplace in isolated configuration,
+  listed 10 skills, and reported the plugin MCP server connected.
+- Scoped GitHub Actions workflow covers Linux/Node 22 and macOS/Node 24;
+  actionlint passed. No Claude/Codex AI-review actions exist in this branch's CI.
+- Dependency audit remains open: one high Zod advisory affects five package
+  entries through UTCP's Zod 3 requirement. See docs/security.md; no automatic
+  compatible fix is available. No clean-audit claim is made.
 - Node 24 used locally. Native isolated-vm build succeeded. GUI rendering,
   live provider actions and npm registry publication are not claimed.

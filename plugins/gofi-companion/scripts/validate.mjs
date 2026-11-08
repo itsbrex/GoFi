@@ -17,6 +17,14 @@ const ui = portable.extensions['com.openai'].interface;
 assert(ui.shortDescription.length <= 30);
 assert.deepEqual((await json('.codex-plugin/plugin.json')).interface, ui);
 for (const key of ['logo','logoDark','composerIcon','composerIconDark']) assert((await stat(join(root,ui[key]))).size > 0);
+for (const [manifest, variable] of [['.mcp.json', 'CLAUDE_PLUGIN_ROOT'], ['mcp.codex.json', 'PLUGIN_ROOT'], ['mcp.cursor.json', 'CURSOR_PLUGIN_ROOT']]) {
+  const entry = (await json(manifest)).mcpServers.gofi;
+  assert.equal(entry.command, 'node');
+  assert.deepEqual(entry.args, [`\${${variable}}/runtime/mcp.mjs`]);
+  assert.equal(entry.cwd, `\${${variable}}`);
+  assert((await stat(join(root, 'runtime/mcp.mjs'))).isFile());
+}
+for (const [manifest, field] of [['.claude-plugin/plugin.json','icon'],['.cursor-plugin/plugin.json','logo']]) assert((await stat(join(root, (await json(manifest))[field]))).size > 0);
 for (const host of ['claude', 'cursor']) {
   const catalog = JSON.parse(await readFile(resolve(root, `../../.${host}-plugin/marketplace.json`), 'utf8'));
   assert.equal(catalog.plugins.length, 1);
