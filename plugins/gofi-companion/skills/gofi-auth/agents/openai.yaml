@@ -1,0 +1,9 @@
+interface:
+  display_name: "Check and recover GoFi auth"
+  short_description: "Check tokens and recover sessions"
+  default_prompt: "Check GoFi authentication and refresh supported sessions before downloading."
+  brand_color: "#0B675F"
+  icon_small: "./assets/icon.png"
+  icon_large: "./assets/logo.png"
+policy:
+  allow_implicit_invocation: true
