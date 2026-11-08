@@ -1,0 +1,19 @@
+{
+  "name": "gofi-companion",
+  "owner": {
+    "email": "roach7@gmail.com",
+    "name": "Brian Roach"
+  },
+  "metadata": {
+    "description": "GoFi tools and verified FLAC workflows",
+    "version": "1.1.0"
+  },
+  "plugins": [
+    {
+      "name": "gofi-companion",
+      "source": "./plugins/gofi-companion",
+      "description": "GoFi FLAC workflows with verified audio, explicit auth, and local UTCP code-mode tools.",
+      "version": "1.1.0"
+    }
+  ]
+}

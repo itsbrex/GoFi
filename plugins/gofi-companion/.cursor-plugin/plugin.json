@@ -1,0 +1,23 @@
+{
+  "name": "gofi-companion",
+  "version": "1.1.0",
+  "description": "GoFi FLAC workflows with verified audio, explicit auth, and local UTCP code-mode tools.",
+  "author": {
+    "email": "roach7@gmail.com",
+    "name": "Brian Roach"
+  },
+  "homepage": "https://github.com/itsbrex/GoFi",
+  "repository": "https://github.com/itsbrex/GoFi",
+  "license": "UNLICENSED",
+  "keywords": [
+    "gofi",
+    "music",
+    "flac",
+    "playlist",
+    "authentication",
+    "icloud"
+  ],
+  "logo": "assets/logo.png",
+  "mcpServers": "./mcp.cursor.json",
+  "skills": "./skills"
+}

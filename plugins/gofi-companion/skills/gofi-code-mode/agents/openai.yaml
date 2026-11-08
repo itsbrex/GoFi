@@ -1,0 +1,7 @@
+interface:
+  display_name: "GoFi code-mode tools"
+  short_description: "Run and poll local GoFi tools"
+  default_prompt: "Use GoFi Companion code-mode tools to inspect my setup and run the requested music workflow."
+  brand_color: "#0B675F"
+policy:
+  allow_implicit_invocation: true

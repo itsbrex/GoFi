@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "gofi": {
+      "command": "node",
+      "args": [
+        "${PLUGIN_ROOT}/runtime/mcp.mjs"
+      ],
+      "cwd": "${PLUGIN_ROOT}"
+    }
+  }
+}

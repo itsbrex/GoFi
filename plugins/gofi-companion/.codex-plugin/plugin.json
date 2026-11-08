@@ -1,0 +1,54 @@
+{
+  "author": {
+    "email": "roach7@gmail.com",
+    "name": "Brian Roach"
+  },
+  "description": "GoFi FLAC workflows with verified audio, explicit auth, and local UTCP code-mode tools.",
+  "extensions": {
+    "com.openai": {
+      "onboardingSkill": "./skills/gofi-setup/SKILL.md"
+    }
+  },
+  "interface": {
+    "brandColor": "#0B675F",
+    "brandColorDark": "#80D6BA",
+    "capabilities": [
+      "Track and playlist downloads",
+      "Live authentication preflight",
+      "Supported session recovery",
+      "FLAC, metadata and artwork verification",
+      "Scoped iCloud sync and sharing",
+      "Download failure diagnosis",
+      "Local CLI and MCP code-mode tools"
+    ],
+    "category": "Entertainment",
+    "composerIcon": "./assets/icon.png",
+    "composerIconDark": "./assets/icon-dark.png",
+    "defaultPrompt": [
+      "Download this track as FLAC with GoFi and verify the file.",
+      "Download this playlist with auth checks and a result for every track.",
+      "Check GoFi authentication and recover supported sessions."
+    ],
+    "developerName": "Brian Roach",
+    "displayName": "GoFi Companion",
+    "logo": "./assets/logo.png",
+    "logoDark": "./assets/logo-dark.png",
+    "longDescription": "Bring your GoFi music workflow into chat. Check Deezer authentication and lossless capability before each download, refresh Spotify access tokens through GoFi, recover an expired Deezer session from an existing signed-in browser, and import a complete token from a user-selected HAR without exposing credentials. Download tracks, albums and playlists through your local GoFi checkout. Verify real FLAC audio, tags, cover art and file hashes; finalize selected files into an existing iCloud library with local symlinks; create scoped view-only links only when approved. Includes focused diagnosis and regression-test guidance. Requires a connected Mac or compatible host with local execution, GoFi, Python 3.10+, provider access and FLAC tools. Installing on a phone does not grant access to a Mac. Provider-required login, revoked refresh grants, account restrictions and unavailable formats still require resolution. No bundled credentials, background login service, messaging or public library sharing.",
+    "shortDescription": "Tracks, playlists, checked."
+  },
+  "keywords": [
+    "gofi",
+    "music",
+    "flac",
+    "playlist",
+    "authentication",
+    "icloud"
+  ],
+  "license": "UNLICENSED",
+  "name": "gofi-companion",
+  "skills": "./skills",
+  "version": "1.1.0",
+  "homepage": "https://github.com/itsbrex/GoFi",
+  "repository": "https://github.com/itsbrex/GoFi",
+  "mcpServers": "./mcp.codex.json"
+}

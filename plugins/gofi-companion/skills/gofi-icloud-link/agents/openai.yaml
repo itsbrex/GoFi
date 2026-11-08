@@ -1,0 +1,9 @@
+interface:
+  display_name: "Share selected music files"
+  short_description: "Create scoped view-only links"
+  default_prompt: "Create an anyone-with-link, view-only iCloud link for this verified file only."
+  brand_color: "#0B675F"
+  icon_small: "./assets/icon.png"
+  icon_large: "./assets/logo.png"
+policy:
+  allow_implicit_invocation: false

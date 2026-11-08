@@ -1,0 +1,9 @@
+interface:
+  display_name: "Diagnose GoFi failures"
+  short_description: "Separate auth, quality and network"
+  default_prompt: "Diagnose this GoFi failure, reproduce its earliest failing layer, and add an authorized regression test."
+  brand_color: "#0B675F"
+  icon_small: "./assets/icon.png"
+  icon_large: "./assets/logo.png"
+policy:
+  allow_implicit_invocation: true

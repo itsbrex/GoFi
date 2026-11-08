@@ -1,0 +1,9 @@
+interface:
+  display_name: "Download a GoFi playlist"
+  short_description: "Track every item in a collection"
+  default_prompt: "Download this playlist as FLAC, refresh supported auth, and report each verified or failed track."
+  brand_color: "#0B675F"
+  icon_small: "./assets/icon.png"
+  icon_large: "./assets/logo.png"
+policy:
+  allow_implicit_invocation: true
