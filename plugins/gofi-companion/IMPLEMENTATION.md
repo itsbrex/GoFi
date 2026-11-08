@@ -3,14 +3,14 @@
 What changed: portable host manifests, native GoFi adapter and two UTCP runtimes.
 Did it work: schemas, 36 Python regressions, 7 runtime tests and clean tarball
 installs pass with fixture GoFi only.
-What's next: final artifacts, fork-only push and PR.
+What's next: review PR #8 and its workflow artifacts; merge/publication is separate.
 
 ## Commit checklist
 
 - [x] Host metadata, icons and marketplace catalogs
 - [x] Adapter, both runtimes, bootstrap export and package builds
 - [x] Regression coverage, installation docs and final verification
-- [ ] Push and read back PR against itsbrex/GoFi main
+- [x] Push and read back PR against itsbrex/GoFi main
 
 ## Scope
 
@@ -50,3 +50,9 @@ part of validation. Fixture receipts and package artifacts are local and ignored
   compatible fix is available. No clean-audit claim is made.
 - Node 24 used locally. Native isolated-vm build succeeded. GUI rendering,
   live provider actions and npm registry publication are not claimed.
+- Fork-only publication: [PR #8](https://github.com/itsbrex/GoFi/pull/8),
+  `feat/gofi-companion-code-mode` into `itsbrex/GoFi:main`. Both repositories
+  were read back through GitHub. No upstream push or PR occurred.
+- Distributions: `artifacts/gofi-companion-1.1.0.zip`, the two scoped npm
+  tarballs, and `artifacts/SHA256SUMS`. CI status and downloadable copies are
+  attached to the PR's GoFi Companion workflow; see that live run for results.
