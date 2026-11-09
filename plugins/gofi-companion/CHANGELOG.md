@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+
+- Accept server-prefixed MCP tool names in the external UTCP integration check.
+- Package the user-verified physical-phone reconnect workflow unchanged.
+
 ## 1.2.0
 
 - Add automatic connection discovery for desktop and mobile sessions using an existing authorized Mac executor.

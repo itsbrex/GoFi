@@ -48,7 +48,7 @@
   ],
   "license": "UNLICENSED",
   "name": "gofi-companion",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "homepage": "https://github.com/itsbrex/GoFi",
   "repository": "https://github.com/itsbrex/GoFi"
 }

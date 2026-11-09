@@ -1,6 +1,6 @@
 {
   "name": "@itsbrex/gofi-code-mode-mcp",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "GoFi Companion UTCP code-mode MCP runtime",
   "license": "UNLICENSED",
   "type": "module",

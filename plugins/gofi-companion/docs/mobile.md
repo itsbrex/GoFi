@@ -37,7 +37,7 @@ Use the packaged CLI tarball from the plugin's tested distributions. With Node
 22/24, install into a private prefix or use the prepared plugin directory:
 
 ```bash
-npm install --prefix "$HOME/.local/share/gofi-companion/host" /absolute/path/itsbrex-gofi-code-mode-cli-1.2.0.tgz
+npm install --prefix "$HOME/.local/share/gofi-companion/host" /absolute/path/itsbrex-gofi-code-mode-cli-1.2.1.tgz
 "$HOME/.local/share/gofi-companion/host/node_modules/.bin/gofi-code-mode-cli" connect
 ```
 

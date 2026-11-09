@@ -26,7 +26,8 @@ try {
   for (const [type, config] of [['cli', join(temp, 'cli.json')], ['mcp', join(temp, 'bootstrap/gofi.utcp.json')]]) {
     const listed = await exec(process.execPath, [resolve(cliEntry), 'list', '--config', config], { cwd: temp, env, timeout: 30000 });
     const names = JSON.parse(listed.stdout).tools;
-    assert(names.some(name => name.endsWith('.jobs_list')));
+    // MCP adapters may add a server prefix (gofi.gofi_jobs_list).
+    assert(names.some(name => /(?:^|[._])jobs_list$/.test(name)));
     const name = names.find(name => name.endsWith('version'));
     assert(name && /^[A-Za-z0-9_.]+$/.test(name));
     const args = type === 'cli' ? { request: '{}' } : {};

@@ -114,7 +114,7 @@ npm run pack:all
 npm run test:packages
 ```
 
-`artifacts/` contains `itsbrex-gofi-code-mode-{mcp,cli}-1.2.0.tgz`, `gofi-companion-1.2.0.zip`, and `SHA256SUMS`. The ZIP contains root Claude/Cursor marketplace catalogs, the plugin, and both tarballs under its `distributions/` directory. Extract it, prepare the plugin with `npm ci`, then register the extracted marketplace directory. Archives contain no dependencies, music, credentials or run receipts.
+`artifacts/` contains `itsbrex-gofi-code-mode-{mcp,cli}-1.2.1.tgz`, `gofi-companion-1.2.1.zip`, and `SHA256SUMS`. The ZIP contains root Claude/Cursor marketplace catalogs, the plugin, and both tarballs under its `distributions/` directory. Extract it, prepare the plugin with `npm ci`, then register the extracted marketplace directory. Archives contain no dependencies, music, credentials or run receipts.
 
 Install either tarball into your own project with `npm install /path/to/package.tgz`; use `node_modules/.bin/gofi-code-mode-cli` or configure `node_modules/.bin/gofi-code-mode-mcp` as a stdio MCP server. Both packages include all adapter/helper source they need. The names are package identities; this change builds tarballs and CI artifacts, not an npm registry publication. Native dependencies install on the destination host. GitHub Actions publishes the tested archives as workflow artifacts, not a release.
 

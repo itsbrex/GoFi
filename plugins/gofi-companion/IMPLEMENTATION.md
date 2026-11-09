@@ -1,10 +1,10 @@
-# GoFi Companion 1.2.0
+# GoFi Companion 1.2.1
 
 What changed: automatic connected-host routing, transport initialization fallback,
 host-bound request IDs and reconnectable job receipts.
 Did it work: runtime, Python, schema and package checks pass; the user confirmed
 the same verified job on a physical iPhone before and after reopening the chat.
-What's next: merge PR #9 after final CI and the review window.
+What's next: keep the connected Mac executor running; PR #9 tracks release status.
 
 ## Mobile update checklist
 
@@ -105,3 +105,11 @@ receipts and package artifacts are local and ignored.
   The failed macOS job passed on its single rerun in
   [run 42539925342](https://github.com/itsbrex/GoFi/actions/runs/42539925342).
   The native abort remains an unreproduced dependency/runtime risk.
+- Version 1.2.1 corrects the external integration check for MCP's server-prefixed
+  `gofi.gofi_jobs_list` name. Both existing UTCP clients accepted both CLI and
+  mcp-bootstrap MCP exports and called only the fixture version tool. Fresh
+  package/ZIP checks and schemas passed. The mobile runtime is unchanged.
+- Account plugin and stable host CLI are now 1.2.1. Account readback preserved
+  prompts/private audience and confirmed the corrected check and new tarballs;
+  old 1.2.0 tarballs were removed. A remote code chain on the updated host CLI
+  still found the same host, one matching verified job and its original finish time.

@@ -1,6 +1,6 @@
 {
   "name": "@itsbrex/gofi-code-mode-cli",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "GoFi Companion UTCP code-mode CLI runtime",
   "license": "UNLICENSED",
   "type": "module",
