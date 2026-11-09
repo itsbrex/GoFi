@@ -2,8 +2,9 @@
 
 What changed: automatic connected-host routing, transport initialization fallback,
 host-bound request IDs and reconnectable job receipts.
-Did it work: 11 runtime tests, 36 Python checks, schemas and clean package installs pass.
-What's next: finish the physical-phone client check and merge PR #9 after review.
+Did it work: runtime, Python, schema and package checks pass; the user confirmed
+the same verified job on a physical iPhone before and after reopening the chat.
+What's next: merge PR #9 after final CI and the review window.
 
 ## Mobile update checklist
 
@@ -12,7 +13,7 @@ What's next: finish the physical-phone client check and merge PR #9 after review
 - [x] Implement host routing, stable request IDs and recent-job lookup
 - [x] Verify final runtime regressions and clean package installs
 - [x] Publish fork-only PR and update the existing account plugin
-- [ ] Verify physical-phone reconnect and polling
+- [x] Verify physical-phone reconnect and polling (user-performed test)
 
 ## Initial distribution checklist
 
@@ -29,8 +30,10 @@ at the fork's current main, which contains the upstream d-fi entrypoint, not the
 user's customized gofi executable. The plugin requires an existing current GoFi
 checkout and checks auth CLI capabilities before provider operations.
 
-No music jobs, live auth recovery, messages, sharing changes or Swarm calls form
-part of validation. Fixture receipts and package artifacts are local and ignored.
+Initial distribution validation used offline fixtures. The mobile update also
+used the one explicitly requested live track described below. No messages,
+public sharing changes or Swarm calls formed part of this update. Fixture
+receipts and package artifacts are local and ignored.
 
 ## Verification passes
 
@@ -74,8 +77,11 @@ part of validation. Fixture receipts and package artifacts are local and ignored
   the SHA-256 remained unchanged. Cloud upload completion is not claimed.
 - Existing Remote Desktop Commander device session was restored with version 0.3.1.
   A remote CLI read returned the same completed job without starting another download.
-- A physical iPhone is paired. iPhone Mirroring control timed out before and after
-  the user made the screen ready. This is not a passed phone UI test.
+- The user tested the physical iPhone: recovered the existing verified track job,
+  closed/reopened the chat, then checked the same job again. The user reported
+  "Same verified job both times." A subsequent remote read found exactly one
+  matching job with the original completion time. This is user-performed phone
+  proof; iPhone Mirroring automation remained unavailable after repeated timeouts.
 - Source changes remain isolated from unrelated original GoFi work.
 
 - Version 1.2.0: 11 runtime regressions and 36 offline Python checks passed.
@@ -91,3 +97,11 @@ part of validation. Fixture receipts and package artifacts are local and ignored
 - [PR #9](https://github.com/itsbrex/GoFi/pull/9) targets the fork main branch.
   Initial head passed Linux/Node 22, macOS/Node 24 and Go CI in
   [run 42539684387](https://github.com/itsbrex/GoFi/actions/runs/42539684387).
+- The next documentation-only head hit one macOS native sandbox abort:
+  `libc++abi: terminating due to uncaught exception of type std::length_error`
+  during a packed CLI fixture code chain on Node 24.22.2. No runtime change was
+  made or fix claimed. Investigation passed 20 separate fixture chains on Node
+  24.19.0, 40 on the exact CI Node 24.22.2, and clean package/ZIP checks on 24.22.2.
+  The failed macOS job passed on its single rerun in
+  [run 42539925342](https://github.com/itsbrex/GoFi/actions/runs/42539925342).
+  The native abort remains an unreproduced dependency/runtime risk.
