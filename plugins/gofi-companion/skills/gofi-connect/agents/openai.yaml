@@ -1,0 +1,7 @@
+interface:
+  display_name: "Connect GoFi from any device"
+  short_description: "Find Mac tools and recover jobs"
+  default_prompt: "Connect to my existing GoFi Mac, choose a working MCP or CLI route, and recover any existing job before starting work."
+  brand_color: "#0B675F"
+policy:
+  allow_implicit_invocation: true

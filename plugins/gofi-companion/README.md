@@ -6,7 +6,7 @@ Local plugin for GoFi tracks, playlists, authentication recovery, verified FLAC 
 
 ## Start here
 
-Install with the instructions below, then ask: **Set up GoFi Companion on my Mac.** Installing on a phone does not provide remote access to your Mac; downloads need a connected host with local execution.
+Install with the instructions below, then ask: **Set up GoFi Companion on my Mac.** The plugin automatically checks GoFi MCP, then the code-mode CLI on your connected host. Mobile sessions can use the existing authorized Mac executor; one-time pairing is still required. See [mobile setup and reconnect behavior](docs/mobile.md).
 
 - **Track:** “Download this track as FLAC with GoFi and verify the file.”
 - **Playlist:** “Download this playlist and report every verified, reused or failed track.”
@@ -29,16 +29,16 @@ An existing compatible GoFi checkout must provide `./gofi`, `auth deezer --force
 
 ## Install from the fork
 
-Claude Code marketplace installation, after this branch is merged:
+Claude Code marketplace installation:
 
 ```text
 /plugin install gofi-companion --marketplace itsbrex/GoFi
 ```
 
-For a local checkout or the unmerged PR branch, first prepare dependencies, then register that local marketplace:
+For a local checkout, first prepare dependencies, then register that local marketplace:
 
 ```bash
-git clone --branch feat/gofi-companion-code-mode https://github.com/itsbrex/GoFi.git gofi-plugins
+git clone https://github.com/itsbrex/GoFi.git gofi-plugins
 cd gofi-plugins/plugins/gofi-companion
 npm ci
 npm run validate
@@ -51,7 +51,7 @@ Claude installs a cached copy. Its MCP server needs dependencies in **that insta
 
 Codex: add the local `plugins/gofi-companion` directory or the fork's marketplace through the plugin UI supported by your client. The root Agent Plugins manifest and `.codex-plugin` compatibility manifest include the same display metadata. Cursor: add this repository as a plugin marketplace, or use its plugin directory; `.cursor-plugin/marketplace.json` points to the same package. Run `npm ci` in each host's installed plugin directory, then restart its MCP connection. UI publication or directory approval is not implied by these files.
 
-If the host cannot start a local MCP server, the skills and `gofi-code-mode-cli` remain usable with local shell access. Windows support is not claimed: the CLI transport and existing helpers use POSIX tools.
+If the client cannot start a local MCP server, gofi-connect selects an available local or authorized remote Mac executor and runs `gofi-code-mode-cli` there. It verifies host identity and the GoFi checkout; an unrelated cloud sandbox is insufficient. When neither route is ready, it provides the exact setup step. Windows support is not claimed: the CLI transport and existing helpers use POSIX tools.
 
 ## Configure and use code mode
 
@@ -70,6 +70,7 @@ Defaults are `~/github/GoFi`, `~/Music/d-fi-music/FLAC/Tracks`, and `~/Music/d-f
 From the plugin directory:
 
 ```bash
+node runtime/cli.mjs connect
 node runtime/cli.mjs list
 node runtime/cli.mjs info
 node runtime/cli.mjs call gofi.status '{}'
@@ -77,11 +78,13 @@ node runtime/cli.mjs run 'return await gofi.version({});'
 GOFI_UTCP_TRANSPORT=mcp node runtime/cli.mjs run 'return await gofi.version({});'
 ```
 
-Both packages use the real `@utcp/code-mode` engine. `GOFI_UTCP_TRANSPORT=cli` (default) discovers a UTCP CLI manual; `mcp` discovers the bundled native stdio MCP adapter. The host-facing MCP server exposes `search_tools`, `tools_info`, and `call_tool_chain`. Code runs as JavaScript in `isolated-vm`, with generated TypeScript tool interfaces; TypeScript-specific syntax is not transpiled.
+Both packages use the real `@utcp/code-mode` engine. `GOFI_UTCP_TRANSPORT=auto` (default) tries the bundled native MCP adapter, then CLI discovery if initialization fails. `cli` and `mcp` force a backend. This internal transport choice is separate from the skill choosing an available MCP connection or a remote host CLI. Neither layer retries a failed business operation through another route. The host-facing MCP server exposes `search_tools`, `tools_info`, and `call_tool_chain`. Code runs as JavaScript in `isolated-vm`, with generated TypeScript tool interfaces; TypeScript-specific syntax is not transpiled.
 
-Tools: `gofi.status`, `version`, `help`, `auth_check`, `auth_ensure`, `verify_audio`, `download_start`, and `job_status`. Auth checks contact the provider; auth recovery may update private credentials. Downloads require explicit user intent. Code-mode is a local execution surface, not a permission boundary replacing host approvals.
+Tools: `gofi.status`, `version`, `help`, `auth_check`, `auth_ensure`, `verify_audio`, `download_start`, `job_status`, and `jobs_list`. Auth checks contact the provider; auth recovery may update private credentials. Downloads require explicit user intent. Code-mode is a local execution surface, not a permission boundary replacing host approvals.
 
-`download_start({url, output?})` returns a job ID immediately. Poll `job_status({job_id})`; never replay a job because an MCP request ended. Workers finish in the background only for requested jobs, with private receipts under `~/.local/state/gofi-companion/jobs`. `verified` means the helper fully verified newly created FLAC files. `needs_review` covers reused files, fallback formats and collection reconciliation. It does not prove a complete playlist. An interrupted worker leaves its lock for review; inspect its receipt and confirm no worker remains before manually removing `download.lock`.
+Retain a UUID before calling `download_start({url, output?, request_id, expected_host_id})`; use the host identity returned by `status`. The request ID becomes its job ID. A repeat with the same ID and request returns the existing receipt without another worker; a changed source/output or wrong host is rejected. Older callers may omit these fields, but mobile/reconnect workflows must supply them. Poll `job_status({job_id})`, or recover IDs with `jobs_list({source: url})` / CLI `jobs URL` and `resume JOB_ID`. A lost response never authorizes a new request ID.
+
+ Workers finish in the background only for requested jobs, with private receipts under `~/.local/state/gofi-companion/jobs`. `verified` means the helper fully verified newly created FLAC files. `needs_review` covers reused files, fallback formats and collection reconciliation. It does not prove a complete playlist. An interrupted worker leaves its lock for review; inspect its receipt and confirm no worker remains before manually removing `download.lock`.
 
 Sharing, messages and iCloud moves remain explicit skill workflows. No generic shell or messaging tool is exposed.
 
@@ -101,7 +104,7 @@ Use each client's search/info output to obtain the exact callable name. UTCP MCP
 
 ## Package
 
-Ten skills include setup, operations and code-mode guidance. Root `plugin.json` uses Agent Plugins 1.0. Host overlays add supported display fields and correct root variables. Light/dark SVG and PNG logos, composer icons, and a generated brand cover are included. See [host support and spec sources](docs/compatibility.md) for exact fields and deliberately unused components.
+Eleven skills include connection discovery, setup, operations and code-mode guidance. Root `plugin.json` uses Agent Plugins 1.0. Host overlays add supported display fields and correct root variables. Light/dark SVG and PNG logos, composer icons, and a generated brand cover are included. See [host support and spec sources](docs/compatibility.md) for exact fields and deliberately unused components.
 
 Build both npm packages and a marketplace ZIP:
 
@@ -111,7 +114,7 @@ npm run pack:all
 npm run test:packages
 ```
 
-`artifacts/` contains `itsbrex-gofi-code-mode-{mcp,cli}-1.1.0.tgz`, `gofi-companion-1.1.0.zip`, and `SHA256SUMS`. The ZIP contains root Claude/Cursor marketplace catalogs, the plugin, and both tarballs under its `distributions/` directory. Extract it, prepare the plugin with `npm ci`, then register the extracted marketplace directory. Archives contain no dependencies, music, credentials or run receipts.
+`artifacts/` contains `itsbrex-gofi-code-mode-{mcp,cli}-1.2.0.tgz`, `gofi-companion-1.2.0.zip`, and `SHA256SUMS`. The ZIP contains root Claude/Cursor marketplace catalogs, the plugin, and both tarballs under its `distributions/` directory. Extract it, prepare the plugin with `npm ci`, then register the extracted marketplace directory. Archives contain no dependencies, music, credentials or run receipts.
 
 Install either tarball into your own project with `npm install /path/to/package.tgz`; use `node_modules/.bin/gofi-code-mode-cli` or configure `node_modules/.bin/gofi-code-mode-mcp` as a stdio MCP server. Both packages include all adapter/helper source they need. The names are package identities; this change builds tarballs and CI artifacts, not an npm registry publication. Native dependencies install on the destination host. GitHub Actions publishes the tested archives as workflow artifacts, not a release.
 

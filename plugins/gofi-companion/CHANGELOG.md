@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.0
+
+- Add automatic connection discovery for desktop and mobile sessions using an existing authorized Mac executor.
+- Add MCP-to-CLI fallback during transport initialization only, plus CLI connect/jobs/resume commands.
+- Bind downloads to a verified host and stable request ID; repeated requests recover receipts without another worker.
+- Add reconnect, host mismatch and duplicate-request regressions, with scoped remote setup guidance.
+
 ## 1.1.0
 
 - Add Codex, Claude Code and Cursor metadata, icons and marketplace catalogs.

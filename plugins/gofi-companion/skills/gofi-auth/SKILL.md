@@ -5,6 +5,8 @@ description: "Use before GoFi downloads or when Spotify authorization or Deezer 
 
 # Check and recover authentication
 
+Run gofi-connect first to select the actual GoFi host. On mobile, use that authorized Mac executor; never copy tokens into the phone or a cloud sandbox.
+
 Use `scripts/gofi_auth.py` with Python 3.10+ on the connected GoFi Mac. Commands print credential-free JSON. The host curl client handles live requests with TLS verification, no redirects, no personal curl config, a 15-second total deadline and credential headers passed privately on stdin. Resolve the helper from this installed skill directory; replace REPO with the verified checkout path and quote all paths.
 
 ```bash

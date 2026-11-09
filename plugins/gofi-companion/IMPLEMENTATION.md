@@ -1,11 +1,20 @@
-# GoFi Companion 1.1.0
+# GoFi Companion 1.2.0
 
-What changed: portable host manifests, native GoFi adapter and two UTCP runtimes.
-Did it work: schemas, 36 Python regressions, 7 runtime tests and clean tarball
-installs pass with fixture GoFi only.
-What's next: review PR #8 and its workflow artifacts; merge/publication is separate.
+What changed: automatic connected-host routing, transport initialization fallback,
+host-bound request IDs and reconnectable job receipts.
+Did it work: 11 runtime tests, 36 Python checks, schemas and clean package installs pass.
+What's next: complete package checks, publish the update and verify the physical-phone client.
 
-## Commit checklist
+## Mobile update checklist
+
+- [x] Verify a real track through the installed code-mode CLI
+- [x] Reconnect the existing Mac executor and recover the same receipt remotely
+- [x] Implement host routing, stable request IDs and recent-job lookup
+- [x] Verify final runtime regressions and clean package installs
+- [ ] Publish fork-only PR and update the existing account plugin
+- [ ] Verify physical-phone reconnect and polling
+
+## Initial distribution checklist
 
 - [x] Host metadata, icons and marketplace catalogs
 - [x] Adapter, both runtimes, bootstrap export and package builds
@@ -29,7 +38,7 @@ part of validation. Fixture receipts and package artifacts are local and ignored
 2. Fixture behavior, argument validation, injection resistance and job lifecycle.
 3. Packed npm installs, both UTCP transports and MCP stdio round trips.
 
-## Evidence
+## Initial 1.1.0 evidence
 
 - Agent Plugins JSON schemas and Claude plugin/marketplace validator: passed.
 - Runtime tests: 7 passed; both UTCP transports, code chains, CLI errors,
@@ -56,3 +65,19 @@ part of validation. Fixture receipts and package artifacts are local and ignored
 - Distributions: `artifacts/gofi-companion-1.1.0.zip`, the two scoped npm
   tarballs, and `artifacts/SHA256SUMS`. CI status and downloadable copies are
   attached to the PR's GoFi Companion workflow; see that live run for results.
+
+## Current live evidence
+
+- One requested Spotify track completed through the installed CLI with CLI transport.
+  Provider auth, recording ISRC/duration, full FLAC decode and embedded artwork passed.
+- Scoped iCloud finalization produced a canonical file and local absolute symlink;
+  the SHA-256 remained unchanged. Cloud upload completion is not claimed.
+- Existing Remote Desktop Commander device session was restored with version 0.3.1.
+  A remote CLI read returned the same completed job without starting another download.
+- A physical iPhone is paired. iPhone Mirroring control timed out before and after
+  the user made the screen ready. This is not a passed phone UI test.
+- Source changes remain isolated from unrelated original GoFi work.
+
+- Version 1.2.0: 11 runtime regressions and 36 offline Python checks passed.
+  Fresh installs passed both CLI/MCP entrypoints over both transport types, and
+  the extracted marketplace ZIP ran independently. Schema validation passed.

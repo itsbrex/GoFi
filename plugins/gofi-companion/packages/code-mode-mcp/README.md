@@ -6,7 +6,7 @@ path to `node_modules/.bin/gofi-code-mode-mcp`. Set `GOFI_REPO` in that server's
 environment when your existing checkout is outside `~/github/GoFi`.
 
 The server exposes `search_tools`, `tools_info`, and `call_tool_chain`. Example
-code: `return await gofi.status({});`. `GOFI_UTCP_TRANSPORT=cli` (default) or `mcp`
+code: `return await gofi.status({});`. `GOFI_UTCP_TRANSPORT=auto` (default), `cli` or `mcp`
 selects the underlying adapter; both are included. Diagnostics go to stderr.
 
 Requires Node 22 or 24, Python 3.10+, and a compatible GoFi binary with

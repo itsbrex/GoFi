@@ -5,8 +5,8 @@ description: "Use when downloading one Spotify or Deezer track through an existi
 
 # Download one track
 
-1. Use gofi-setup's discovered profile and current repository instructions. Confirm the exact URL, intended recording, requested format, and destination. Defaults for this workflow are quality 9, local Tracks, canonical iCloud FLAC storage, and a per-file local absolute symlink. No implicit sharing or Messages delivery.
-2. When the bundled MCP connection is available, use gofi-code-mode: start `gofi.download_start({url, output})`, retain its job ID, and poll `gofi.job_status({job_id})`. It runs this skill's helper with auth preflight and audio verification. Never replay a start because a tool request timed out. Otherwise use `scripts/gofi_run.py` directly as below. Both paths are FLAC-only at the acceptance boundary; an MP3 fallback is reported for review and never relabeled FLAC.
+1. Run gofi-connect automatically, then use gofi-setup's discovered profile and current repository instructions. Confirm the exact URL, intended recording, requested format, and destination. Defaults for this workflow are quality 9, local Tracks, canonical iCloud FLAC storage, and a per-file local absolute symlink. No implicit sharing or Messages delivery.
+2. Use gofi-code-mode through the chosen MCP connection or host CLI. Retain one UUID and start `gofi.download_start({url, output, request_id, expected_host_id})`, then poll `gofi.job_status({job_id})` on the same host. It runs this skill's helper with auth preflight and audio verification. Never create a new request because a tool call timed out; recover its receipt with job_status/jobs_list. Use `scripts/gofi_run.py` directly only when code-mode is unavailable and local execution remains verified; it has no durable code-mode job receipt. Both paths are FLAC-only at the acceptance boundary; an MP3 fallback is reported for review and never relabeled FLAC.
 
 ```bash
 python3 scripts/gofi_run.py 'https://open.spotify.com/track/TRACK_ID' --repo REPO --output TRACKS --symlink-search-dir ICLOUD_FLAC
