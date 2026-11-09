@@ -8,4 +8,6 @@ A user-selected HAR may contain passwords. The importer reads eligible successfu
 
 Creating an iCloud share intentionally changes access only after the user specifies the item and audience. No sharing approval is remembered for future downloads. Nothing is sent through Messages, Mail or other messaging services by this package. Plugin installation does not automatically grant remote Mac access.
 
+When the user connects an existing remote executor, that service carries scoped GoFi command arguments and redacted results, including source URLs, file paths and job receipts. Its own retention and access policy applies. Provider credentials remain on the Mac; the plugin never transmits credential files through the relay. Host fingerprints and executor paths are non-secret routing metadata stored in the private host profile, not in distributable packages.
+
 This document describes this private package; it is not a public publisher legal policy. Provider and host data handling remains governed by those services.

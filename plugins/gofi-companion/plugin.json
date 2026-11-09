@@ -17,7 +17,8 @@
           "FLAC, metadata and artwork verification",
           "Scoped iCloud sync and sharing",
           "Download failure diagnosis",
-          "Local CLI and MCP code-mode tools"
+          "Local CLI and MCP code-mode tools",
+          "Connected Mac routing and job recovery"
         ],
         "category": "Entertainment",
         "composerIcon": "./assets/icon.png",
@@ -31,7 +32,7 @@
         "displayName": "GoFi Companion",
         "logo": "./assets/logo.png",
         "logoDark": "./assets/logo-dark.png",
-        "longDescription": "Bring your GoFi music workflow into chat. Check Deezer authentication and lossless capability before each download, refresh Spotify access tokens through GoFi, recover an expired Deezer session from an existing signed-in browser, and import a complete token from a user-selected HAR without exposing credentials. Download tracks, albums and playlists through your local GoFi checkout. Verify real FLAC audio, tags, cover art and file hashes; finalize selected files into an existing iCloud library with local symlinks; create scoped view-only links only when approved. Includes focused diagnosis and regression-test guidance. Requires a connected Mac or compatible host with local execution, GoFi, Python 3.10+, provider access and FLAC tools. Installing on a phone does not grant access to a Mac. Provider-required login, revoked refresh grants, account restrictions and unavailable formats still require resolution. No bundled credentials, background login service, messaging or public library sharing.",
+        "longDescription": "Bring your GoFi music workflow into chat. Check Deezer authentication and lossless capability before each download, refresh Spotify access tokens through GoFi, recover an expired Deezer session from an existing signed-in browser, and import a complete token from a user-selected HAR without exposing credentials. Download tracks, albums and playlists through your local GoFi checkout. Verify real FLAC audio, tags, cover art and file hashes; finalize selected files into an existing iCloud library with local symlinks; create scoped view-only links only when approved. Includes focused diagnosis and regression-test guidance. Requires a connected Mac or compatible host with local execution, GoFi, Python 3.10+, provider access and FLAC tools. Installing on a phone does not grant access to a Mac. Provider-required login, revoked refresh grants, account restrictions and unavailable formats still require resolution. No bundled credentials, background login service, messaging or public library sharing. Automatically checks GoFi MCP, then the host CLI through an already authorized Mac executor. Stable request IDs and saved receipts support reconnection without duplicate downloads. One-time remote pairing remains required.",
         "shortDescription": "Tracks, playlists, checked."
       },
       "onboardingSkill": "./skills/gofi-setup/SKILL.md"
@@ -47,7 +48,7 @@
   ],
   "license": "UNLICENSED",
   "name": "gofi-companion",
-  "version": "1.1.0",
+  "version": "1.2.1",
   "homepage": "https://github.com/itsbrex/GoFi",
   "repository": "https://github.com/itsbrex/GoFi"
 }

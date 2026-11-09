@@ -6,7 +6,7 @@ import { engine } from './engine.mjs';
 // UTCP dependencies log lifecycle messages with console.log. Keep stdio clean.
 console.log = (...args) => console.error(...args);
 const client = await engine();
-const server = new Server({ name: 'gofi-code-mode-mcp', version: '1.1.0' }, { capabilities: { tools: {} } });
+const server = new Server({ name: 'gofi-code-mode-mcp', version: '1.2.1' }, { capabilities: { tools: {} } });
 const schema = properties => ({ type: 'object', properties, additionalProperties: false });
 const tools = [
   { name: 'search_tools', description: 'Find GoFi tools and their input schemas.', inputSchema: schema({ query: { type: 'string' } }) },

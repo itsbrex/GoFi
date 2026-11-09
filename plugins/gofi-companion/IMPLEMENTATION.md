@@ -1,11 +1,21 @@
-# GoFi Companion 1.1.0
+# GoFi Companion 1.2.1
 
-What changed: portable host manifests, native GoFi adapter and two UTCP runtimes.
-Did it work: schemas, 36 Python regressions, 7 runtime tests and clean tarball
-installs pass with fixture GoFi only.
-What's next: review PR #8 and its workflow artifacts; merge/publication is separate.
+What changed: automatic connected-host routing, transport initialization fallback,
+host-bound request IDs and reconnectable job receipts.
+Did it work: runtime, Python, schema and package checks pass; the user confirmed
+the same verified job on a physical iPhone before and after reopening the chat.
+What's next: keep the connected Mac executor running; PR #9 tracks release status.
 
-## Commit checklist
+## Mobile update checklist
+
+- [x] Verify a real track through the installed code-mode CLI
+- [x] Reconnect the existing Mac executor and recover the same receipt remotely
+- [x] Implement host routing, stable request IDs and recent-job lookup
+- [x] Verify final runtime regressions and clean package installs
+- [x] Publish fork-only PR and update the existing account plugin
+- [x] Verify physical-phone reconnect and polling (user-performed test)
+
+## Initial distribution checklist
 
 - [x] Host metadata, icons and marketplace catalogs
 - [x] Adapter, both runtimes, bootstrap export and package builds
@@ -20,8 +30,10 @@ at the fork's current main, which contains the upstream d-fi entrypoint, not the
 user's customized gofi executable. The plugin requires an existing current GoFi
 checkout and checks auth CLI capabilities before provider operations.
 
-No music jobs, live auth recovery, messages, sharing changes or Swarm calls form
-part of validation. Fixture receipts and package artifacts are local and ignored.
+Initial distribution validation used offline fixtures. The mobile update also
+used the one explicitly requested live track described below. No messages,
+public sharing changes or Swarm calls formed part of this update. Fixture
+receipts and package artifacts are local and ignored.
 
 ## Verification passes
 
@@ -29,7 +41,7 @@ part of validation. Fixture receipts and package artifacts are local and ignored
 2. Fixture behavior, argument validation, injection resistance and job lifecycle.
 3. Packed npm installs, both UTCP transports and MCP stdio round trips.
 
-## Evidence
+## Initial 1.1.0 evidence
 
 - Agent Plugins JSON schemas and Claude plugin/marketplace validator: passed.
 - Runtime tests: 7 passed; both UTCP transports, code chains, CLI errors,
@@ -56,3 +68,48 @@ part of validation. Fixture receipts and package artifacts are local and ignored
 - Distributions: `artifacts/gofi-companion-1.1.0.zip`, the two scoped npm
   tarballs, and `artifacts/SHA256SUMS`. CI status and downloadable copies are
   attached to the PR's GoFi Companion workflow; see that live run for results.
+
+## Current live evidence
+
+- One requested Spotify track completed through the installed CLI with CLI transport.
+  Provider auth, recording ISRC/duration, full FLAC decode and embedded artwork passed.
+- Scoped iCloud finalization produced a canonical file and local absolute symlink;
+  the SHA-256 remained unchanged. Cloud upload completion is not claimed.
+- Existing Remote Desktop Commander device session was restored with version 0.3.1.
+  A remote CLI read returned the same completed job without starting another download.
+- The user tested the physical iPhone: recovered the existing verified track job,
+  closed/reopened the chat, then checked the same job again. The user reported
+  "Same verified job both times." A subsequent remote read found exactly one
+  matching job with the original completion time. This is user-performed phone
+  proof; iPhone Mirroring automation remained unavailable after repeated timeouts.
+- Source changes remain isolated from unrelated original GoFi work.
+
+- Version 1.2.0: 11 runtime regressions and 36 offline Python checks passed.
+  Fresh installs passed both CLI/MCP entrypoints over both transport types, and
+  the extracted marketplace ZIP ran independently. Schema validation passed.
+
+- Private account plugin v1.2.0 saved; manifest, CLI, adapter, routing module,
+  connection skill and mobile guide matched source on readback. Existing prompts
+  and private audience were preserved; old distribution tarballs were replaced.
+- Stable host CLI installed outside the plugin cache. Through the existing
+  remote executor, repeating the original completed request returned resumed=true,
+  the same completion time/hash, and one matching job before and after.
+- [PR #9](https://github.com/itsbrex/GoFi/pull/9) targets the fork main branch.
+  Initial head passed Linux/Node 22, macOS/Node 24 and Go CI in
+  [run 42539684387](https://github.com/itsbrex/GoFi/actions/runs/42539684387).
+- The next documentation-only head hit one macOS native sandbox abort:
+  `libc++abi: terminating due to uncaught exception of type std::length_error`
+  during a packed CLI fixture code chain on Node 24.22.2. No runtime change was
+  made or fix claimed. Investigation passed 20 separate fixture chains on Node
+  24.19.0, 40 on the exact CI Node 24.22.2, and clean package/ZIP checks on 24.22.2.
+  The failed macOS job passed on its single rerun in
+  [run 42539925342](https://github.com/itsbrex/GoFi/actions/runs/42539925342).
+  The native abort remains an unreproduced dependency/runtime risk.
+- Version 1.2.1 corrects the external integration check for MCP's server-prefixed
+  `gofi.gofi_jobs_list` name. Both existing UTCP clients accepted both CLI and
+  mcp-bootstrap MCP exports and called only the fixture version tool. Fresh
+  package/ZIP checks and schemas passed. The mobile runtime is unchanged.
+- Account plugin and stable host CLI are now 1.2.1. Account readback preserved
+  prompts/private audience and confirmed the corrected check and new tarballs;
+  old 1.2.0 tarballs were removed. A remote code chain on the updated host CLI
+  still found the same host, one matching verified job and its original finish time.

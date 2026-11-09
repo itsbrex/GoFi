@@ -6,7 +6,7 @@ const command = `${quote(process.execPath)} ${quote(fileURLToPath(import.meta.ur
 const inherited = ['PATH', 'HOME', 'TMPDIR', 'GOFI_REPO', 'GOFI_PYTHON', 'GOFI_COMPANION_STATE_DIR', 'DEEZER_ARL', 'SPOTIFY_CLIENT_ID', 'SPOTIFY_CLIENT_SECRET'];
 const template = cmd => ({ call_template_type: 'cli', commands: [{ command: cmd, append_to_final_output: true }], inherit_env_vars: inherited });
 export function manual() {
-  return { utcp_version: '1.0.0', manual_version: '1.1.0', tools: definitions.map(t => ({ name: t.name, description: t.description, inputs: t.inputSchema, outputs: { type: 'object' }, tags: ['gofi'], tool_call_template: { name: t.name, ...template(`${command} call ${t.name} UTCP_ARG_request_UTCP_END`) } })) };
+  return { utcp_version: '1.0.0', manual_version: '1.2.1', tools: definitions.map(t => ({ name: t.name, description: t.description, inputs: t.inputSchema, outputs: { type: 'object' }, tags: ['gofi'], tool_call_template: { name: t.name, ...template(`${command} call ${t.name} UTCP_ARG_request_UTCP_END`) } })) };
 }
 // One JSON envelope avoids shell interpretation of URLs, filenames or code.
 // Public tool schemas are restored by the runtime; the wire is request:string.

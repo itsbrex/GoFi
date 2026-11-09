@@ -5,10 +5,10 @@ description: "Use when downloading a Spotify or Deezer playlist or album with Go
 
 # Download playlists and albums
 
-Use gofi-setup and gofi-auth first. A playlist is a tracked collection job, not a count of files in a folder.
+Run gofi-connect automatically, then use gofi-setup and gofi-auth. A playlist is a tracked collection job, not a count of files in a folder.
 
 1. Resolve the exact playlist/album URL, visibility, owner/source, expected item count, destination, quality and duplicate policy. Read metadata with existing authorized provider access. Do not expand private-playlist scopes or invite accounts without approval. Snapshot ordered item IDs, titles, artists, versions and ISRC where available into a private run receipt outside the plugin.
-2. Prefer gofi-code-mode's `gofi.download_start({url, output})` and poll the returned job ID with `gofi.job_status({job_id})`. It uses the sibling gofi-track helper with quality 9 and concurrency 2. If MCP is unavailable, call the helper below directly. It validates auth automatically and reports changed files. Existing files and unrelated artist folders are not new successes. Retain the job ID; a request timeout is not permission to replay the collection.
+2. Use gofi-code-mode through the selected MCP connection or host CLI. Retain a UUID first, call `gofi.download_start({url, output, request_id, expected_host_id})`, then poll `gofi.job_status({job_id})` on that host. It uses the sibling gofi-track helper with quality 9 and concurrency 2. If both code-mode entrypoints are unavailable but host execution is verified, the helper below is a final fallback without durable code-mode receipts. It validates auth automatically and reports changed files. Existing files and unrelated artist folders are not new successes. Retain the request/job ID; reconnect through job_status/jobs_list, never by starting another collection.
 
 ```bash
 python3 ../gofi-track/scripts/gofi_run.py 'https://open.spotify.com/playlist/PLAYLIST_ID' --repo REPO --output PLAYLIST_DEST --concurrency 2 --symlink-search-dir ICLOUD_FLAC
