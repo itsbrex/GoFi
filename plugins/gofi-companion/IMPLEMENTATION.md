@@ -3,7 +3,7 @@
 What changed: automatic connected-host routing, transport initialization fallback,
 host-bound request IDs and reconnectable job receipts.
 Did it work: 11 runtime tests, 36 Python checks, schemas and clean package installs pass.
-What's next: complete package checks, publish the update and verify the physical-phone client.
+What's next: finish the physical-phone client check and merge PR #9 after review.
 
 ## Mobile update checklist
 
@@ -11,7 +11,7 @@ What's next: complete package checks, publish the update and verify the physical
 - [x] Reconnect the existing Mac executor and recover the same receipt remotely
 - [x] Implement host routing, stable request IDs and recent-job lookup
 - [x] Verify final runtime regressions and clean package installs
-- [ ] Publish fork-only PR and update the existing account plugin
+- [x] Publish fork-only PR and update the existing account plugin
 - [ ] Verify physical-phone reconnect and polling
 
 ## Initial distribution checklist
@@ -81,3 +81,13 @@ part of validation. Fixture receipts and package artifacts are local and ignored
 - Version 1.2.0: 11 runtime regressions and 36 offline Python checks passed.
   Fresh installs passed both CLI/MCP entrypoints over both transport types, and
   the extracted marketplace ZIP ran independently. Schema validation passed.
+
+- Private account plugin v1.2.0 saved; manifest, CLI, adapter, routing module,
+  connection skill and mobile guide matched source on readback. Existing prompts
+  and private audience were preserved; old distribution tarballs were replaced.
+- Stable host CLI installed outside the plugin cache. Through the existing
+  remote executor, repeating the original completed request returned resumed=true,
+  the same completion time/hash, and one matching job before and after.
+- [PR #9](https://github.com/itsbrex/GoFi/pull/9) targets the fork main branch.
+  Initial head passed Linux/Node 22, macOS/Node 24 and Go CI in
+  [run 42539684387](https://github.com/itsbrex/GoFi/actions/runs/42539684387).
