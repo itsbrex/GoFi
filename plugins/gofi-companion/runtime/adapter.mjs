@@ -1,16 +1,18 @@
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
-import { readFile, writeFile, mkdir, rename, stat, open, rm, realpath } from 'node:fs/promises';
-import { dirname, resolve, join, isAbsolute } from 'node:path';
-import { homedir } from 'node:os';
+import { readFile, writeFile, mkdir, rename, stat, open, rm, realpath, readdir } from 'node:fs/promises';
+import { dirname, resolve, join, isAbsolute, basename } from 'node:path';
+import { homedir, hostname } from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import Ajv from 'ajv';
 
 const exec = promisify(execFile);
 export const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const object = (properties = {}, required = []) => ({ type: 'object', properties, required, additionalProperties: false });
 const string = { type: 'string', minLength: 1, maxLength: 4096 };
+const uuid = { type: 'string', pattern: '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$' };
 export const definitions = [
   ['status', 'Read local GoFi paths and prerequisites. No provider requests.', object()],
   ['version', 'Read the configured GoFi executable version.', object()],
@@ -18,8 +20,9 @@ export const definitions = [
   ['auth_check', 'Check Deezer live authentication without recovery. Explicit provider request.', object()],
   ['auth_ensure', 'Recover supported stored/browser authentication and refresh Spotify when requested. May write private credentials.', object({ spotify: { type: 'boolean' } })],
   ['verify_audio', 'Fully decode an explicitly selected FLAC and report metadata, artwork and SHA-256.', object({ path: string }, ['path'])],
-  ['download_start', 'Start an explicit FLAC track, album or playlist download with auth preflight and concurrency 2. Returns a job ID; poll job_status. No sharing, messaging or automatic cloud moves.', object({ url: string, output: string }, ['url'])],
-  ['job_status', 'Read a download receipt. Playlist completeness still requires source reconciliation.', object({ job_id: { type: 'string', pattern: '^[a-f0-9-]{36}$' } }, ['job_id'])],
+  ['download_start', 'Start an explicit FLAC download. Retain one UUID request_id before sending; repeats return the same receipt without restarting work. Pin expected_host_id from status. No sharing or messaging.', object({ url: string, output: string, request_id: uuid, expected_host_id: { type: 'string', pattern: '^[a-f0-9]{32}$' } }, ['url'])],
+  ['job_status', 'Read a download receipt, including after reconnect. Playlist completeness still requires source reconciliation.', object({ job_id: uuid }, ['job_id'])],
+  ['jobs_list', 'Recover recent job IDs after a lost response. Optionally filter by exact source URL. Read only; never resumes or restarts work.', object({ source: string, limit: { type: 'integer', minimum: 1, maximum: 50 } })],
 ].map(([name, description, inputSchema]) => ({ name, description, inputSchema, annotations: {
   readOnlyHint: !['auth_ensure', 'download_start'].includes(name),
   destructiveHint: false,
@@ -53,6 +56,11 @@ export async function settings() {
   };
 }
 async function exists(path) { try { return (await stat(path)).isFile(); } catch { return false; } }
+export function hostId(config) {
+  // A routing identity, not a credential or a security boundary. It stays stable
+  // across plugin upgrades but changes for another machine or job store.
+  return createHash('sha256').update(JSON.stringify([hostname(), homedir(), config.repo, config.state])).digest('hex').slice(0, 32);
+}
 export async function atomicJson(path, data) {
   const tmp = `${path}.${randomUUID()}.tmp`;
   await writeFile(tmp, JSON.stringify(data, null, 2) + '\n', { mode: 0o600, flag: 'wx' });
@@ -74,11 +82,13 @@ async function pythonJson(config, relative, args, timeout = 120000) {
 export async function invoke(name, args = {}) {
   validate(name, args);
   const c = await settings();
-  if (name === 'status') return { ...c, python: undefined, binary_exists: await exists(c.binary), quality: 9, concurrency: 2, cloud_finalization: 'explicit skill workflow', sharing: 'host approval required', messaging: 'host approval required' };
+  if (name === 'status') return { ...c, python: undefined, host_id: hostId(c), platform: process.platform, node: process.version, cli: join(root, 'runtime/cli.mjs'), node_executable: process.execPath, binary_exists: await exists(c.binary), quality: 9, concurrency: 2, cloud_finalization: 'explicit skill workflow', sharing: 'host approval required', messaging: 'host approval required' };
   if (name === 'job_status') {
     const result = JSON.parse(await readFile(join(c.state, 'jobs', args.job_id, 'result.json'), 'utf8'));
-    return result;
+    return { host_id: hostId(c), ...result };
   }
+  if (name === 'jobs_list') return listJobs(c, args);
+  if (name === 'download_start') return startDownload(c, args);
   if (name === 'verify_audio') {
     if (!isAbsolute(args.path) || !args.path.toLowerCase().endsWith('.flac')) throw new Error('Select an absolute FLAC file path');
     await realpath(args.path);
@@ -98,33 +108,101 @@ export async function invoke(name, args = {}) {
     if (name === 'auth_ensure') argv.push('--require-lossless', ...(args.spotify ? ['--spotify'] : []));
     return pythonJson(c, 'gofi-auth/scripts/gofi_auth.py', argv);
   }
-  if (name === 'download_start') {
-    const kind = sourceKind(args.url);
-    await requireCapabilities(c);
-    if (args.output && !isAbsolute(args.output)) throw new Error('Output must be an absolute path');
-    await mkdir(join(c.state, 'jobs'), { recursive: true, mode: 0o700 });
-    const lock = join(c.state, 'download.lock');
-    let handle;
-    try { handle = await open(lock, 'wx', 0o600); } catch (e) {
-      if (e.code === 'EEXIST') throw new Error('A GoFi Companion download is active or interrupted. Review its receipt before removing the lock');
-      throw e;
-    }
-    const job_id = randomUUID();
-    const dir = join(c.state, 'jobs', job_id);
-    try {
-      await handle.writeFile(job_id); await handle.close();
-      await mkdir(dir, { mode: 0o700 });
-      const source = new URL(args.url);
-      const request = { url: source.origin + source.pathname, output: args.output || (kind === 'track' ? c.tracks : c.playlists), repo: c.repo };
-      await atomicJson(join(dir, 'request.json'), request);
-      await atomicJson(join(dir, 'result.json'), { job_id, status: 'running', kind, started_at: new Date().toISOString() });
-      const child = spawn(process.execPath, [join(root, 'runtime/worker.mjs'), dir], { detached: true, stdio: 'ignore', env: privateEnv() });
-      await new Promise((ok, fail) => { child.once('spawn', ok); child.once('error', fail); });
-      child.unref();
-      return { job_id, status: 'running', kind, output: request.output, next: 'Poll job_status; do not start the same job again' };
-    } catch (e) { await handle.close().catch(() => {}); await rm(lock, { force: true }); throw e; }
-  }
   throw new Error('Unknown GoFi tool');
+}
+async function listJobs(c, args) {
+  const source = args.source ? normalizedSource(args.source) : undefined;
+  let entries;
+  try { entries = await readdir(join(c.state, 'jobs'), { withFileTypes: true }); }
+  catch (e) { if (e.code === 'ENOENT') return { host_id: hostId(c), jobs: [], unreadable_receipts: 0 }; throw e; }
+  const jobs = [];
+  let unreadable_receipts = 0;
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !new RegExp(uuid.pattern).test(entry.name)) continue;
+    try {
+      const dir = join(c.state, 'jobs', entry.name);
+      const request = JSON.parse(await readFile(join(dir, 'request.json'), 'utf8'));
+      if (source && request.url !== source) continue;
+      const receipt = JSON.parse(await readFile(join(dir, 'result.json'), 'utf8'));
+      jobs.push({ job_id: receipt.job_id, status: receipt.status, kind: receipt.kind, source: request.url, output: request.output, started_at: receipt.started_at, finished_at: receipt.finished_at });
+    } catch { unreadable_receipts++; }
+  }
+  jobs.sort((a, b) => (b.started_at || '').localeCompare(a.started_at || ''));
+  return { host_id: hostId(c), jobs: jobs.slice(0, args.limit || 20), unreadable_receipts };
+}
+function normalizedSource(value) {
+  sourceKind(value);
+  const source = new URL(value);
+  return source.origin + source.pathname;
+}
+async function replay(dir, request, c) {
+  try { await stat(dir); } catch (e) { if (e.code === 'ENOENT') return null; throw e; }
+  let saved, receipt;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    try {
+      saved = JSON.parse(await readFile(join(dir, 'request.json'), 'utf8'));
+      receipt = JSON.parse(await readFile(join(dir, 'result.json'), 'utf8'));
+      break;
+    } catch {
+      const owner = await readFile(join(c.state, 'download.lock'), 'utf8').catch(() => '');
+      if (owner !== basename(dir) || attempt === 19) throw new Error('Request receipt is incomplete. Inspect jobs_list and the existing worker; do not start a new request');
+      await delay(25);
+    }
+  }
+  if (['url', 'output', 'repo'].some(key => saved[key] !== request[key])) throw new Error('request_id already belongs to a different download');
+  return { ...receipt, host_id: hostId(c), output: saved.output, resumed: true, next: 'Read job_status; this request was not started again' };
+}
+async function startDownload(c, args) {
+  if (args.expected_host_id && args.expected_host_id !== hostId(c)) throw new Error('GoFi host identity changed. Reconnect to the original host before starting or resuming');
+  const kind = sourceKind(args.url);
+  if (args.output && !isAbsolute(args.output)) throw new Error('Output must be an absolute path');
+  const request = { url: normalizedSource(args.url), output: args.output || (kind === 'track' ? c.tracks : c.playlists), repo: c.repo };
+  const job_id = args.request_id || randomUUID();
+  const dir = join(c.state, 'jobs', job_id);
+  // Replays must work even if GoFi/auth is currently unavailable.
+  const previous = await replay(dir, request, c);
+  if (previous) return previous;
+  if (!await exists(c.binary)) throw new Error('GoFi executable missing. Set GOFI_REPO to an existing checkout containing ./gofi');
+  await requireCapabilities(c);
+  await mkdir(join(c.state, 'jobs'), { recursive: true, mode: 0o700 });
+  const lock = join(c.state, 'download.lock');
+  let handle;
+  try { handle = await open(lock, 'wx', 0o600); } catch (e) {
+    if (e.code === 'EEXIST') {
+      // An identical concurrent start may still be persisting its receipt.
+      for (let i = 0; args.request_id && i < 20; i++) {
+        const owner = await readFile(lock, 'utf8').catch(() => '');
+        if (owner && owner !== job_id) break;
+        await delay(25);
+        try { const prior = await replay(dir, request, c); if (prior) return prior; }
+        catch (error) { if (!error.message.startsWith('Request receipt is incomplete')) throw error; }
+      }
+      throw new Error('A GoFi Companion download is active or interrupted. Read jobs_list/job_status before retrying; keep the same request_id');
+    }
+    throw e;
+  }
+  let started = false;
+  let receipt;
+  try {
+    await handle.writeFile(job_id); await handle.close();
+    const prior = await replay(dir, request, c);
+    if (prior) return prior;
+    await mkdir(dir, { mode: 0o700 });
+    await atomicJson(join(dir, 'request.json'), request);
+    receipt = { job_id, request_id: job_id, host_id: hostId(c), status: 'running', kind, started_at: new Date().toISOString() };
+    await atomicJson(join(dir, 'result.json'), receipt);
+    const child = spawn(process.execPath, [join(root, 'runtime/worker.mjs'), dir], { detached: true, stdio: 'ignore', env: privateEnv() });
+    await new Promise((ok, fail) => { child.once('spawn', ok); child.once('error', fail); });
+    child.unref();
+    started = true;
+    return { ...receipt, output: request.output, resumed: false, next: 'Poll job_status; retain request_id across reconnects' };
+  } catch (e) {
+    if (receipt) await atomicJson(join(dir, 'result.json'), { ...receipt, status: 'failed', error: 'Worker did not start; inspect this receipt before any new request', finished_at: new Date().toISOString() });
+    throw e;
+  } finally {
+    await handle.close().catch(() => {});
+    if (!started && await readFile(lock, 'utf8').catch(() => '') === job_id) await rm(lock, { force: true });
+  }
 }
 async function requireCapabilities(c) {
   // Old GoFi releases lack --force/--check. Fail before any live auth request.
@@ -143,7 +221,7 @@ export async function runWorker(dir) {
   } catch (e) { receipt = { ...receipt, status: 'failed', error: e.message }; }
   finally {
     await atomicJson(join(dir, 'result.json'), { ...receipt, finished_at: new Date().toISOString() });
-    const lock = join(c.state, 'download.lock');
+    const lock = join(dirname(dirname(dir)), 'download.lock');
     // An operator may have reviewed an interrupted job and replaced its lock.
     // Never remove another job's lock when this worker eventually finishes.
     if (await readFile(lock, 'utf8').catch(() => '') === receipt.job_id) await rm(lock, { force: true });
